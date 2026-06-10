@@ -341,7 +341,7 @@
   </style>
 </head>
 <body>
-  <!-- AGENT_VERSION: v1.0.2 -->
+  <!-- AGENT_VERSION: v1.0.3 -->
   <div class="container">
     <header>
       <div class="brand-section">
@@ -352,12 +352,240 @@
       
       <div class="metadata-bar">
         <span class="badge badge-version"><i class="fas fa-code-branch"></i> <span id="latest-version-badge">v1.0.0</span></span>
-        <span class="badge badge-updated"><i class="fas fa-sync-alt"></i> Last Sync: <span id="last-updated-date">2026-06-10 15:32:55</span></span>
+        <span class="badge badge-updated"><i class="fas fa-sync-alt"></i> Last Sync: <span id="last-updated-date">2026-06-10 15:34:09</span></span>
       </div>
     </header>
 
     <main class="audits-timeline">
 <!-- AUDITS_INSERT_MARKER -->
+    <!-- AUDIT_CARD_v1.0.3_START -->
+    <div class="audit-card glass-panel" id="audit-v1-0-3">
+      <div class="card-header">
+        <div class="header-left">
+          <span class="badge badge-card-version">v1.0.3</span>
+          <span class="audit-timestamp"><i class="fas fa-clock"></i> 2026-06-10 15:34:09</span>
+        </div>
+        <button class="toggle-btn" onclick="toggleCard('audit-v1-0-3')">
+          <i class="fas fa-chevron-down" id="icon-audit-v1-0-3"></i>
+        </button>
+      </div>
+      <div class="card-content active" id="content-audit-v1-0-3">
+        <div class="markdown-rendered"></div>
+        <template class="raw-markdown"># Code Quality, Structural, and Code-Smell Audit: Version v1.0.3
+
+---
+
+## 1. Summary of Code Modifications
+
+The changes introduced in version **v1.0.3** establish an automated, AI-driven technical documentation and code review agent. The modifications span three primary areas:
+
+1. **The \`agent\` Package (\`agent/\`)**:
+   * **\`agent.go\`**: Orchestrates the workflow. It detects the base Git branch, extracts Go and SQL diffs, initializes a Google Gemini LLM client, requests code/query reviews, and triggers HTML report generation.
+   * **\`html.go\`**: Handles version resolution (parsing and auto-incrementing semver from HTML comments) and updates/creates responsive HTML reports using embedded CSS and JavaScript (Marked.js and Prism.js).
+   * **\`llm.go\`**: Wraps the Google Generative AI SDK (\`genai\`) to manage connection state, set model parameters (e.g., temperature), and handle prompt construction for both code and database audits.
+2. **The \`models\` Package (\`models/\`)**:
+   * **\`user.go\`**: Introduces a GORM-managed \`User\` struct, a GORM hook (\`BeforeCreate\`), and a query function (\`FindActiveUsers\`).
+3. **Application Entry Point (\`main.go\`)**:
+   * Implements a CLI interface supporting a \`generate\` subcommand with an optional \`-version\` flag to override automatic semver incrementing.
+
+---
+
+## 2. Structural Adjustments & Architecture
+
+### Package Layout and Separation of Concerns
+* **Monolithic Agent Package**: The \`agent\` package handles three distinct responsibilities: Git interaction, LLM communication, and HTML generation. While acceptable for a utility of this size, as the application grows, these should be decoupled into distinct sub-packages (e.g., \`pkg/git\`, \`pkg/llm\`, \`pkg/report\`).
+* **Tight Coupling to OS/Environment**: \`agent.go\` directly reads environment variables (\`GEMINI_API_KEY\`, \`GEMINI_MODEL\`) and writes to the local filesystem (\`docs/\`). This limits testability.
+
+### Dependency Analysis
+* **External CDNs**: The generated HTML report relies on external CDNs (\`cdnjs.cloudflare.com\` and \`cdn.jsdelivr.net\`) to load \`marked.min.js\` and \`Prism.js\` at runtime. This introduces a runtime dependency on third-party availability and exposes the system to supply-chain risks if those CDNs are compromised.
+
+---
+
+## 3. Go Quality, Idiomatic Style & Error Handling
+
+### Error Wrapping
+Throughout \`agent.go\` and \`llm.go\`, errors are formatted using \`%v\`:
+\`\`\`go
+return fmt.Errorf("failed to retrieve Go diff: %v", err)
+\`\`\`
+* **Critique**: In modern Go (1.13+), it is idiomatic to use \`%w\` instead of \`%v\` when wrapping errors. This allows calling code to inspect underlying errors using \`errors.Is\` or \`errors.As\`.
+
+### Misuse of GORM Sentinel Errors
+In \`models/user.go\`:
+\`\`\`go
+func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
+	if u.Email == "" {
+		return gorm.ErrRecordNotFound // Dummy error for validation
+	}
+	return nil
+}
+\`\`\`
+* **Critique**: Returning \`gorm.ErrRecordNotFound\` for a validation failure is highly misleading. \`ErrRecordNotFound\` is a specific database query sentinel error. Returning it here will confuse callers who check for missing records, leading to incorrect application logic. A custom validation error should be returned instead.
+
+### Context Propagation
+* **Praise**: The use of \`context.WithTimeout\` in \`RunGenerate\`, \`getBaseBranch\`, and \`getGitDiff\` is excellent. It prevents the CLI from hanging indefinitely on slow network calls or blocked Git processes.
+
+---
+
+## 4. Code Smells & Security Flaws
+
+### 1. Critical Security Flaw: Stored Cross-Site Scripting (XSS) / HTML Injection
+In \`agent/html.go\`, the markdown content returned by the LLM is injected directly into an HTML template inside a \`<template>\` tag:
+\`\`\`go
+return fmt.Sprintf(\`...
+      <div class="card-content active" id="content-%s">
+        <div class="markdown-rendered"></div>
+        <template class="raw-markdown">%s</template>
+      </div>
+...\`, ..., escapedMarkdown, ...)
+\`\`\`
+* **Vulnerability**: Although backticks and dollar signs are escaped, **HTML tags are not**. If the LLM generates a response containing \`</template><script>alert(1)</script>\` (either due to prompt injection or malicious code in the git diff), the script will execute in the browser of anyone viewing the report.
+
+### 2. Security Flaw: Git Command/Argument Injection
+In \`agent/agent.go\`, the \`getGitDiff\` function executes:
+\`\`\`go
+cmd := exec.CommandContext(gitCtx, "git", "diff", baseBranch+"...HEAD", "--", filePattern)
+\`\`\`
+* **Vulnerability**: If \`baseBranch\` is derived from an untrusted source or contains shell metacharacters/git flags (e.g., \`--upload-pack\`), it could lead to argument injection. Although \`getBaseBranch\` currently resolves branches using hardcoded strings, any future modification allowing user-supplied branches would make this highly exploitable.
+
+### 3. Security Flaw: Missing Subresource Integrity (SRI)
+The HTML template loads external scripts without SRI hashes:
+\`\`\`html
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+\`\`\`
+* **Vulnerability**: If the CDN is compromised, malicious code could be injected into the technical documentation reports.
+
+### 4. Code Smell & Performance: Missing Database Index
+In \`models/user.go\`:
+\`\`\`go
+func FindActiveUsers(db *gorm.DB) ([]User, error) {
+	err := db.Where("is_active = ?", true).Order("created_at DESC").Find(&users).Error
+	return users, err
+}
+\`\`\`
+* **Performance Issue**: The query filters by \`is_active\` and orders by \`created_at DESC\`. However, the \`User\` struct only indexes \`DeletedAt\` and \`Email\`. As the \`users\` table grows, this query will trigger a full table scan and an in-memory filesort.
+
+---
+
+## 5. Actionable Recommendations
+
+### Recommendation 1: Fix the Stored XSS Vulnerability
+Use Go's standard \`html\` package to escape the raw markdown before embedding it in the HTML template.
+
+\`\`\`go
+// agent/html.go
+import "html"
+
+func generateAuditCardHTML(version, dateStr, markdownReview string) string {
+	// Escape HTML characters to prevent template breakout and XSS
+	safeMarkdown := html.EscapeString(markdownReview)
+	
+	// Escape backticks and dollar signs for JS template literals
+	escapedMarkdown := strings.ReplaceAll(safeMarkdown, "\`", "\\\`")
+	escapedMarkdown = strings.ReplaceAll(escapedMarkdown, "\$", "\\\$")
+
+	cardID := "audit-" + strings.ReplaceAll(version, ".", "-")
+
+	return fmt.Sprintf(\`    <!-- AUDIT_CARD_%s_START -->
+    <div class="audit-card glass-panel" id="%s">
+      ...
+      <div class="card-content active" id="content-%s">
+        <div class="markdown-rendered"></div>
+        <template class="raw-markdown">%s</template>
+      </div>
+    </div>\`, version, cardID, cardID, escapedMarkdown)
+}
+\`\`\`
+*Modify the frontend JS to decode the HTML entities before parsing:*
+\`\`\`javascript
+// Inside getHTMLTemplate script block
+const rawMD = rawMarkdownTemplate.textContent || rawMarkdownTemplate.innerHTML;
+// Decode HTML entities if necessary, or let marked handle the textContent safely
+renderContainer.innerHTML = marked.parse(rawMD);
+\`\`\`
+
+---
+
+### Recommendation 2: Fix GORM Validation and Sentinel Errors
+Define a domain-specific validation error instead of reusing \`gorm.ErrRecordNotFound\`.
+
+\`\`\`go
+// models/user.go
+import (
+	"errors"
+	"time"
+	"gorm.io/gorm"
+)
+
+var ErrInvalidEmail = errors.New("validation failed: email address cannot be empty")
+
+// BeforeCreate is a GORM hook that runs before a record is created
+func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
+	if u.Email == "" {
+		return ErrInvalidEmail
+	}
+	return nil
+}
+\`\`\`
+
+---
+
+### Recommendation 3: Optimize Database Performance (Indexing)
+Add a composite index on \`is_active\` and \`created_at\` to optimize the \`FindActiveUsers\` query.
+
+\`\`\`go
+// models/user.go
+type User struct {
+	ID        uint           \`gorm:"primaryKey" json:"id"\`
+	Email     string         \`gorm:"uniqueIndex;type:varchar(255);not null" json:"email"\`
+	Password  string         \`gorm:"type:varchar(255);not null" json:"-"\`
+	Name      string         \`gorm:"type:varchar(100)" json:"name"\`
+	// Added composite index for active status and creation date sorting
+	IsActive  bool           \`gorm:"default:true;index:idx_active_created,priority:1" json:"is_active"\`
+	CreatedAt time.Time      \`gorm:"index:idx_active_created,priority:2" json:"created_at"\`
+	UpdatedAt time.Time      \`json:"updated_at"\`
+	DeletedAt gorm.DeletedAt \`gorm:"index" json:"-"\`
+}
+\`\`\`
+
+---
+
+### Recommendation 4: Sanitize Git Input and Improve Error Wrapping
+Implement strict validation on the \`baseBranch\` string to prevent argument injection, and use \`%w\` for idiomatic error wrapping.
+
+\`\`\`go
+// agent/agent.go
+import (
+	"regexp"
+	"errors"
+)
+
+var rxSafeBranch = regexp.MustCompile(\`^[a-zA-Z0-9/_.-]+\$\`)
+
+func getGitDiff(ctx context.Context, baseBranch, filePattern string) (string, error) {
+	if !rxSafeBranch.MatchString(baseBranch) {
+		return "", errors.New("invalid git branch name detected")
+	}
+
+	gitCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(gitCtx, "git", "diff", baseBranch+"...HEAD", "--", filePattern)
+	out, err := cmd.Output()
+	if err != nil {
+		// Fallback
+		cmd = exec.CommandContext(gitCtx, "git", "diff", baseBranch, "--", filePattern)
+		out, err = cmd.Output()
+		if err != nil {
+			return "", fmt.Errorf("git diff failed: %w", err) // Idiomatic wrapping
+		}
+	}
+	return string(out), nil
+}
+\`\`\`</template>
+      </div>
+    </div>
+    <!-- AUDIT_CARD_v1.0.3_END -->
     <!-- AUDIT_CARD_v1.0.2_START -->
     <div class="audit-card glass-panel" id="audit-v1-0-2">
       <div class="card-header">
