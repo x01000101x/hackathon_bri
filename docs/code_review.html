@@ -341,7 +341,7 @@
   </style>
 </head>
 <body>
-  <!-- AGENT_VERSION: v1.0.1 -->
+  <!-- AGENT_VERSION: v1.0.2 -->
   <div class="container">
     <header>
       <div class="brand-section">
@@ -352,12 +352,251 @@
       
       <div class="metadata-bar">
         <span class="badge badge-version"><i class="fas fa-code-branch"></i> <span id="latest-version-badge">v1.0.0</span></span>
-        <span class="badge badge-updated"><i class="fas fa-sync-alt"></i> Last Sync: <span id="last-updated-date">2026-06-10 15:22:08</span></span>
+        <span class="badge badge-updated"><i class="fas fa-sync-alt"></i> Last Sync: <span id="last-updated-date">2026-06-10 15:32:55</span></span>
       </div>
     </header>
 
     <main class="audits-timeline">
 <!-- AUDITS_INSERT_MARKER -->
+    <!-- AUDIT_CARD_v1.0.2_START -->
+    <div class="audit-card glass-panel" id="audit-v1-0-2">
+      <div class="card-header">
+        <div class="header-left">
+          <span class="badge badge-card-version">v1.0.2</span>
+          <span class="audit-timestamp"><i class="fas fa-clock"></i> 2026-06-10 15:32:55</span>
+        </div>
+        <button class="toggle-btn" onclick="toggleCard('audit-v1-0-2')">
+          <i class="fas fa-chevron-down" id="icon-audit-v1-0-2"></i>
+        </button>
+      </div>
+      <div class="card-content active" id="content-audit-v1-0-2">
+        <div class="markdown-rendered"></div>
+        <template class="raw-markdown"># Code Quality, Structural, and Code-Smell Audit (v1.0.2)
+
+This document provides a comprehensive technical audit of the changes introduced in version \`v1.0.2\`. The review evaluates architectural design, Go idiomatic patterns, error handling, security, performance, and code smells.
+
+---
+
+## 1. Summary of Code Modifications
+
+The \`v1.0.2\` release introduces an automated, AI-driven documentation and code review agent. The codebase has been expanded with the following additions:
+
+*   **\`main.go\`**: The application entry point, implementing a CLI interface with a \`generate\` subcommand to trigger the documentation pipeline.
+*   **\`agent/agent.go\`**: The core orchestrator. It manages the execution flow: detecting the git environment, extracting code/SQL diffs, initializing the Gemini LLM client, and writing reports.
+*   **\`agent/html.go\` & \`agent/html_test.go\`**: Handles report generation, version auto-incrementing via HTML comment parsing, and HTML/CSS/JS templating.
+*   **\`agent/llm.go\`**: Integrates with the Google Generative AI SDK (\`github.com/google/generative-ai-go\`) to generate code and database reviews using Gemini models.
+*   **\`models/user.go\`**: A GORM-based database model representing a \`User\`, containing a lifecycle hook and a query function.
+
+---
+
+## 2. Structural Adjustments & Architecture
+
+### Single Responsibility Principle (SRP) Violations
+The \`agent\` package is currently overloaded. It handles:
+1.  **Git VCS Operations**: Interacting with the local git binary (\`agent.go\`).
+2.  **Orchestration**: Managing the high-level workflow (\`agent.go\`).
+3.  **HTML Rendering & File I/O**: Parsing, updating, and writing HTML reports (\`html.go\`).
+4.  **LLM Client Management**: Interacting with the Gemini API (\`llm.go\`).
+
+### Hardcoded HTML Templates
+The entire HTML/CSS/JS template is defined as a massive hardcoded string in \`agent/html.go\` (\`getHTMLTemplate\`). This reduces readability, makes front-end maintenance difficult, and prevents IDE syntax highlighting/linting for HTML/CSS/JS.
+
+### Lack of Interface Abstraction
+The \`ReviewClient\` in \`agent/llm.go\` is a concrete struct. If you want to write unit tests for \`RunGenerate\` without making actual network calls to Gemini, or if you want to support alternative LLM providers (e.g., OpenAI, Anthropic, or local models), the tight coupling makes it impossible.
+
+---
+
+## 3. Go Quality, Idiomatic Style & Error Handling
+
+### Non-Idiomatic Error Wrapping
+Throughout the codebase, errors are wrapped using \`fmt.Errorf("...: %v", err)\`. In modern Go (1.13+), it is standard practice to use the \`%w\` verb instead of \`%v\` for error wrapping. This allows calling packages to inspect underlying errors using \`errors.Is\` and \`errors.As\`.
+
+### Semantically Incorrect GORM Hook Error
+In \`models/user.go\`, the \`BeforeCreate\` hook returns \`gorm.ErrRecordNotFound\` when validation fails:
+\`\`\`go
+if u.Email == "" {
+    return gorm.ErrRecordNotFound // Dummy error for validation
+}
+\`\`\`
+\`gorm.ErrRecordNotFound\` is semantically reserved for query failures (e.g., when a requested row does not exist). Returning it here is highly misleading and will break standard error-handling paths in the service layer.
+
+### Silent Error Suppression in Git Detection
+In \`agent/agent.go\`, \`getBaseBranch\` silently swallows errors from \`runGitVerify\`. If the system lacks a \`git\` binary, or if the repository is in a detached HEAD state, the agent will silently fall back to \`HEAD~1\` without notifying the user why the branch detection failed.
+
+---
+
+## 4. Code Smells & Security Flaws
+
+### 1. Sequential Network Calls (Performance Bottleneck)
+In \`agent/agent.go\`, the two LLM generation calls are executed sequentially:
+\`\`\`go
+codeReviewContent, err := client.GenerateCodeReview(ctx, goDiff, version)
+// ...
+queryReviewContent, err := client.GenerateQueryReview(ctx, goDiff, sqlDiff, version)
+\`\`\`
+Since these are independent, high-latency network requests to the Gemini API, executing them sequentially doubles the execution time. They should be run concurrently.
+
+### 2. Context Reuse After Timeout Failure
+In \`agent/agent.go\`, \`getGitDiff\` creates a sub-context with a 5-second timeout:
+\`\`\`go
+gitCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+defer cancel()
+
+cmd := exec.CommandContext(gitCtx, "git", "diff", baseBranch+"...HEAD", "--", filePattern)
+out, err := cmd.Output()
+if err != nil {
+    // If git diff fails, let's try git diff baseBranch -- filePattern as a backup
+    cmd = exec.CommandContext(gitCtx, "git", "diff", baseBranch, "--", filePattern)
+    out, err = cmd.Output()
+    // ...
+}
+\`\`\`
+If the first \`git diff\` command fails because the 5-second timeout expired (\`gitCtx.Done()\`), the second \`exec.CommandContext\` call using the **same** expired \`gitCtx\` will fail immediately. 
+
+### 3. HTML Injection / XSS Vulnerability
+In \`agent/html.go\`, the markdown content returned by the LLM is injected into a \`<template>\` tag:
+\`\`\`go
+<template class="raw-markdown">%s</template>
+\`\`\`
+While backticks and dollar signs are escaped, if the generated markdown contains a closing \`</template>\` tag followed by malicious \`<script>\` tags, it could execute arbitrary JavaScript when the HTML report is opened in a browser. Since the LLM processes untrusted git diffs (which may contain malicious code comments), this is a potential Cross-Site Scripting (XSS) vector.
+
+### 4. Missing Database Index
+In \`models/user.go\`, \`FindActiveUsers\` queries the database using:
+\`\`\`go
+db.Where("is_active = ?", true).Order("created_at DESC")
+\`\`\`
+If the \`users\` table grows large, this query will trigger a full-table scan unless a composite index exists on \`(is_active, created_at DESC)\`.
+
+---
+
+## 5. Actionable Recommendations
+
+### Recommendation A: Use Go \`embed\` for HTML Templates
+Move the HTML template out of \`html.go\` into a dedicated file (e.g., \`agent/templates/report.tmpl\`) and use Go's native \`embed\` package.
+
+**\`agent/templates/report.tmpl\`** (Create this file and paste the HTML structure there).
+
+**Refactored \`agent/html.go\`**:
+\`\`\`go
+package agent
+
+import (
+	_ "embed"
+	"text/template"
+	"io"
+)
+
+//go:embed templates/report.tmpl
+var rawHTMLTemplate string
+
+var parsedTemplate = template.Must(template.New("report").Parse(rawHTMLTemplate))
+
+// RenderReport writes the template safely to an io.Writer
+func RenderReport(w io.Writer, data interface{}) error {
+	return parsedTemplate.Execute(w, data)
+}
+\`\`\`
+
+---
+
+### Recommendation B: Parallelize LLM API Calls
+Use \`golang.org/x/sync/errgroup\` to run the code review and query review API calls concurrently, significantly reducing execution time.
+
+**Refactored \`agent/agent.go\` (within \`RunGenerate\`)**:
+\`\`\`go
+import "golang.org/x/sync/errgroup"
+
+// ...
+
+var codeReviewContent, queryReviewContent string
+g, groupCtx := errgroup.WithContext(ctx)
+
+g.Go(func() error {
+    var err error
+    fmt.Println("🤖 Calling Gemini API to review Code changes...")
+    codeReviewContent, err = client.GenerateCodeReview(groupCtx, goDiff, version)
+    return err
+})
+
+g.Go(func() error {
+    var err error
+    fmt.Println("🤖 Calling Gemini API to review Database & Query changes...")
+    queryReviewContent, err = client.GenerateQueryReview(groupCtx, goDiff, sqlDiff, version)
+    return err
+})
+
+if err := g.Wait(); err != nil {
+    return fmt.Errorf("failed to generate reviews: %w", err)
+}
+\`\`\`
+
+---
+
+### Recommendation C: Fix Context Reuse in \`getGitDiff\`
+Ensure that backup commands do not reuse a potentially expired or canceled context.
+
+**Refactored \`getGitDiff\` in \`agent/agent.go\`**:
+\`\`\`go
+func getGitDiff(ctx context.Context, baseBranch, filePattern string) (string, error) {
+	runDiff := func(timeout time.Duration, args ...string) ([]byte, error) {
+		subCtx, cancel := context.WithTimeout(ctx, timeout)
+		defer cancel()
+		return exec.CommandContext(subCtx, "git", args...).Output()
+	}
+
+	// Primary attempt
+	out, err := runDiff(5*time.Second, "diff", baseBranch+"...HEAD", "--", filePattern)
+	if err != nil {
+		// Backup attempt with a fresh context/timeout
+		out, err = runDiff(5*time.Second, "diff", baseBranch, "--", filePattern)
+		if err != nil {
+			return "", fmt.Errorf("git diff failed: %w", err)
+		}
+	}
+	return string(out), nil
+}
+\`\`\`
+
+---
+
+### Recommendation D: Correct GORM Hook Error & Add Index
+Fix the semantic error in the GORM hook and define a composite index on the \`User\` model to optimize query performance.
+
+**Refactored \`models/user.go\`**:
+\`\`\`go
+package models
+
+import (
+	"errors"
+	"time"
+
+	"gorm.io/gorm"
+)
+
+var ErrInvalidEmail = errors.New("validation failed: email cannot be empty")
+
+type User struct {
+	ID        uint           \`gorm:"primaryKey" json:"id"\`
+	// Added composite index for optimized active user lookups
+	Email     string         \`gorm:"uniqueIndex;type:varchar(255);not null" json:"email"\`
+	Password  string         \`gorm:"type:varchar(255);not null" json:"-"\`
+	Name      string         \`gorm:"type:varchar(100)" json:"name"\`
+	IsActive  bool           \`gorm:"index:idx_active_created;default:true" json:"is_active"\`
+	CreatedAt time.Time      \`gorm:"index:idx_active_created;sort:desc" json:"created_at"\`
+	UpdatedAt time.Time      \`json:"updated_at"\`
+	DeletedAt gorm.DeletedAt \`gorm:"index" json:"-"\`
+}
+
+func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
+	if u.Email == "" {
+		return ErrInvalidEmail // Correct, idiomatic validation error
+	}
+	return nil
+}
+\`\`\`</template>
+      </div>
+    </div>
+    <!-- AUDIT_CARD_v1.0.2_END -->
     <!-- AUDIT_CARD_v1.0.1_START -->
     <div class="audit-card glass-panel" id="audit-v1-0-1">
       <div class="card-header">

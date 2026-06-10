@@ -341,7 +341,7 @@
   </style>
 </head>
 <body>
-  <!-- AGENT_VERSION: v1.0.1 -->
+  <!-- AGENT_VERSION: v1.0.2 -->
   <div class="container">
     <header>
       <div class="brand-section">
@@ -352,12 +352,246 @@
       
       <div class="metadata-bar">
         <span class="badge badge-version"><i class="fas fa-code-branch"></i> <span id="latest-version-badge">v1.0.0</span></span>
-        <span class="badge badge-updated"><i class="fas fa-sync-alt"></i> Last Sync: <span id="last-updated-date">2026-06-10 15:22:08</span></span>
+        <span class="badge badge-updated"><i class="fas fa-sync-alt"></i> Last Sync: <span id="last-updated-date">2026-06-10 15:32:55</span></span>
       </div>
     </header>
 
     <main class="audits-timeline">
 <!-- AUDITS_INSERT_MARKER -->
+    <!-- AUDIT_CARD_v1.0.2_START -->
+    <div class="audit-card glass-panel" id="audit-v1-0-2">
+      <div class="card-header">
+        <div class="header-left">
+          <span class="badge badge-card-version">v1.0.2</span>
+          <span class="audit-timestamp"><i class="fas fa-clock"></i> 2026-06-10 15:32:55</span>
+        </div>
+        <button class="toggle-btn" onclick="toggleCard('audit-v1-0-2')">
+          <i class="fas fa-chevron-down" id="icon-audit-v1-0-2"></i>
+        </button>
+      </div>
+      <div class="card-content active" id="content-audit-v1-0-2">
+        <div class="markdown-rendered"></div>
+        <template class="raw-markdown"># Database Schema, GORM, and Query Performance Audit (v1.0.2)
+
+This document provides a rigorous technical audit of the database schema migrations and GORM model implementations introduced in version **v1.0.2**. 
+
+---
+
+## 1. Schema Migrations & Structural Changes
+
+### Table Analysis: \`users\`
+The migration file \`20260610_add_users_table.sql\` introduces the \`users\` table with the following structure:
+
+| Column Name | PostgreSQL Data Type | Constraints | GORM Mapping | Notes / Issues |
+| :--- | :--- | :--- | :--- | :--- |
+| \`id\` | \`SERIAL\` | \`PRIMARY KEY\` | \`uint\` | **Critical Type Mismatch** (4-byte vs 8-byte) |
+| \`email\` | \`VARCHAR(255)\` | \`NOT NULL UNIQUE\` | \`string\` | Redundant index created manually |
+| \`password\` | \`VARCHAR(255)\` | \`NOT NULL\` | \`string\` | Correct |
+| \`name\` | \`VARCHAR(100)\` | None | \`string\` | Correct |
+| \`is_active\` | \`BOOLEAN\` | \`DEFAULT TRUE\` | \`bool\` | Unindexed; used in critical path queries |
+| \`created_at\` | \`TIMESTAMP WITH TZ\` | \`DEFAULT CURRENT_TIMESTAMP\`| \`time.Time\` | Used for sorting; unindexed |
+| \`updated_at\` | \`TIMESTAMP WITH TZ\` | \`DEFAULT CURRENT_TIMESTAMP\`| \`time.Time\` | Lacks automatic DB-level update trigger |
+| \`deleted_at\` | \`TIMESTAMP WITH TZ\` | None | \`gorm.DeletedAt\`| Soft-delete field; indexed |
+
+### Structural Vulnerabilities & Flaws
+
+1. **Primary Key Integer Overflow Risk (\`SERIAL\` vs \`BIGSERIAL\`)**:
+   The migration defines \`id SERIAL PRIMARY KEY\`. In PostgreSQL, \`SERIAL\` is a 4-byte integer (max value: \`2,147,483,647\`). However, GORM's default \`uint\` maps to a 64-bit unsigned integer (\`uint64\` / \`bigint\` in Postgres, max value: \`9,223,372,036,854,775,807\`). 
+   * **Impact**: High-throughput systems can exhaust a 4-byte integer space, leading to insertion failures. Furthermore, driver-level type mismatches can occur during high-value scans.
+   
+2. **Redundant Index Allocation**:
+   The migration executes:
+   \`\`\`sql
+   CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+   \`\`\`
+   Because the column is already defined with the \`UNIQUE\` constraint (\`email VARCHAR(255) NOT NULL UNIQUE\`), PostgreSQL **automatically** creates a unique B-Tree index (\`users_email_key\`).
+   * **Impact**: Creating a second index on the same column is completely redundant. It wastes disk space, consumes memory in the \`shared_buffers\`, and degrades write performance (\`INSERT\`/\`UPDATE\`/\`DELETE\`) because both indexes must be updated.
+
+3. **Missing DB-Level \`updated_at\` Trigger**:
+   While GORM automatically updates the \`updated_at\` field during application-driven updates, raw SQL updates executed directly on the database bypass GORM and will leave \`updated_at\` stale.
+
+---
+
+## 2. GORM & Database Interactions
+
+### Model Audit: \`models/user.go\`
+
+#### 1. Anti-Pattern in \`BeforeCreate\` Hook
+\`\`\`go
+func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
+	if u.Email == "" {
+		return gorm.ErrRecordNotFound // Dummy error for validation
+	}
+	return nil
+}
+\`\`\`
+* **The Flaw**: Returning \`gorm.ErrRecordNotFound\` for a validation failure is highly anti-idiomatic. \`ErrRecordNotFound\` is explicitly reserved for query misses (\`SELECT\` queries returning 0 rows). 
+* **The Impact**: If an application service attempts to create a user with an empty email, the returned error will mislead the business logic into thinking a record was not found, potentially triggering incorrect fallback logic (e.g., attempting to create it again, or returning a \`404 Not Found\` HTTP status instead of \`400 Bad Request\`).
+
+#### 2. Soft Delete Indexing
+The GORM model defines \`DeletedAt gorm.DeletedAt \`gorm:"index"\`\`. This matches the migration's \`idx_users_deleted_at\`. However, standard B-Tree indexing on nullable soft-delete columns is highly inefficient (see Section 4).
+
+---
+
+## 3. Raw SQL Analysis
+
+### Migration Script Evaluation
+
+\`\`\`sql
+-- +migrate Up
+CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    ...
+);
+\`\`\`
+
+* **Pros**: Use of \`IF NOT EXISTS\` ensures idempotency, preventing migration crashes if run against a dirty state.
+* **Cons**: 
+  * Lacks explicit timezone configuration safety (though \`TIMESTAMP WITH TIME ZONE\` is correctly used).
+  * Lacks a down-migration safety check for table drops when foreign keys might depend on it (not applicable yet, but good practice).
+  * The down migration drops indexes individually before dropping the table:
+    \`\`\`sql
+    DROP INDEX IF EXISTS idx_users_deleted_at;
+    DROP INDEX IF EXISTS idx_users_email;
+    DROP TABLE IF EXISTS users;
+    \`\`\`
+    *Note*: Dropping a table automatically drops all associated indexes. Explicitly dropping them first is safe but redundant.
+
+---
+
+## 4. Query Performance & Optimizations
+
+### Analysis of \`FindActiveUsers\`
+
+\`\`\`go
+func FindActiveUsers(db *gorm.DB) ([]User, error) {
+	var users []User
+	err := db.Where("is_active = ?", true).Order("created_at DESC").Find(&users).Error
+	return users, err
+}
+\`\`\`
+
+#### Generated SQL Query:
+\`\`\`sql
+SELECT * FROM "users" 
+WHERE "users"."is_active" = true 
+  AND "users"."deleted_at" IS NULL 
+ORDER BY created_at DESC;
+\`\`\`
+
+#### Execution Plan & Performance Bottlenecks:
+1. **Sequential Scan (Seq Scan) Hazard**:
+   Neither \`is_active\` nor \`created_at\` is indexed. For a large user base, PostgreSQL will perform a full table scan to filter active users.
+2. **High-Cost Sort (Filesort)**:
+   Because there is no index on \`created_at\` matching the filter criteria, PostgreSQL must load all matching rows into memory (or disk temp files if \`work_mem\` is exceeded) to perform a \`Quick Sort\` or \`Top-N Heapsort\`.
+3. **Memory Exhaustion (OOM Risk)**:
+   The query lacks a \`LIMIT\` or pagination mechanism. If the database contains millions of active users, \`FindActiveUsers\` will attempt to load the entire dataset into Go's application memory, causing an Out-Of-Memory (OOM) crash.
+4. **Inefficient Soft-Delete Index**:
+   The index \`idx_users_deleted_at\` is a standard B-Tree index on \`deleted_at\`. Since ~99% of rows in a typical production database have \`deleted_at IS NULL\`, this index is highly bloated and rarely used by the planner for standard queries.
+
+---
+
+## 5. Actionable Database Recommendations
+
+### Step 1: Refactor the SQL Migration
+Replace the migration with this optimized, production-grade schema. It fixes the type mismatch, removes the redundant index, and adds a highly optimized **Partial Composite Index** designed specifically for the active users query.
+
+\`\`\`sql
+-- +migrate Up
+CREATE TABLE IF NOT EXISTS users (
+    id BIGSERIAL PRIMARY KEY, -- Resolves GORM uint (bigint) mismatch
+    email VARCHAR(255) NOT NULL UNIQUE, -- Automatically creates unique index
+    password VARCHAR(255) NOT NULL,
+    name VARCHAR(100),
+    is_active BOOLEAN DEFAULT TRUE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    deleted_at TIMESTAMP WITH TIME ZONE
+);
+
+-- Highly Optimized Partial Index for Active, Non-Deleted Users sorted by creation date
+-- This index is extremely small because it excludes deleted and inactive users.
+CREATE INDEX IF NOT EXISTS idx_users_active_created_at 
+ON users (created_at DESC) 
+WHERE is_active = TRUE AND deleted_at IS NULL;
+
+-- Partial Index for Soft Deletes (only indexes actual deleted records to keep size minimal)
+CREATE INDEX IF NOT EXISTS idx_users_deleted_at_partial 
+ON users (deleted_at) 
+WHERE deleted_at IS NOT NULL;
+
+
+-- +migrate Down
+DROP TABLE IF EXISTS users;
+\`\`\`
+
+---
+
+### Step 2: Refactor the GORM Model & Queries (\`models/user.go\`)
+
+1. **Fix Validation Error**: Return a clear, structured validation error instead of \`gorm.ErrRecordNotFound\`.
+2. **Implement Context & Pagination**: Add \`context.Context\` support and pagination limits to prevent memory exhaustion.
+
+\`\`\`go
+package models
+
+import (
+	"context"
+	"errors"
+	"time"
+
+	"gorm.io/gorm"
+)
+
+var (
+	ErrEmailRequired = errors.New("user email address cannot be empty")
+)
+
+type User struct {
+	ID        uint           \`gorm:"primaryKey;autoIncrement" json:"id"\`
+	Email     string         \`gorm:"uniqueIndex;type:varchar(255);not null" json:"email"\`
+	Password  string         \`gorm:"type:varchar(255);not null" json:"-"\`
+	Name      string         \`gorm:"type:varchar(100)" json:"name"\`
+	IsActive  bool           \`gorm:"default:true;not null" json:"is_active"\`
+	CreatedAt time.Time      \`json:"created_at"\`
+	UpdatedAt time.Time      \`json:"updated_at"\`
+	DeletedAt gorm.DeletedAt \`gorm:"index:idx_users_deleted_at_partial,expression:deleted_at IS NOT NULL" json:"-"\`
+}
+
+// BeforeCreate runs validation before persisting the record
+func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
+	if u.Email == "" {
+		return ErrEmailRequired // Corrected: Specific validation error
+	}
+	return nil
+}
+
+// FindActiveUsersPaginated fetches active users using the partial index,
+// enforcing pagination limits to prevent OOM errors.
+func FindActiveUsersPaginated(ctx context.Context, db *gorm.DB, limit int, offset int) ([]User, error) {
+	var users []User
+	
+	// Enforce sensible defaults/caps
+	if limit <= 0 || limit > 100 {
+		limit = 20
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	err := db.WithContext(ctx).
+		Where("is_active = ?", true).
+		Order("created_at DESC").
+		Limit(limit).
+		Offset(offset).
+		Find(&users).Error
+
+	return users, err
+}
+\`\`\`</template>
+      </div>
+    </div>
+    <!-- AUDIT_CARD_v1.0.2_END -->
     <!-- AUDIT_CARD_v1.0.1_START -->
     <div class="audit-card glass-panel" id="audit-v1-0-1">
       <div class="card-header">
