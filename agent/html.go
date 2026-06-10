@@ -122,21 +122,21 @@ func generateAuditCardHTML(version, dateStr, markdownReview string) string {
 
 	return fmt.Sprintf(`    <!-- AUDIT_CARD_%s_START -->
     <div class="audit-card glass-panel" id="%s">
-      <div class="card-header">
+      <div class="card-header" onclick="toggleCard('%s')">
         <div class="header-left">
           <span class="badge badge-card-version">%s</span>
           <span class="audit-timestamp"><i class="fas fa-clock"></i> %s</span>
         </div>
-        <button class="toggle-btn" onclick="toggleCard('%s')">
+        <button class="toggle-btn">
           <i class="fas fa-chevron-down" id="icon-%s"></i>
         </button>
       </div>
       <div class="card-content active" id="content-%s">
         <div class="markdown-rendered"></div>
-        <template class="raw-markdown">%s</template>
+        <script type="text/markdown" class="raw-markdown">%s</script>
       </div>
     </div>
-    <!-- AUDIT_CARD_%s_END -->`, version, cardID, version, dateStr, cardID, cardID, cardID, escapedMarkdown, version)
+    <!-- AUDIT_CARD_%s_END -->`, version, cardID, cardID, version, dateStr, cardID, cardID, escapedMarkdown, version)
 }
 
 // getHTMLTemplate generates the full base HTML template with CSS styling
@@ -524,15 +524,18 @@ func getHTMLTemplate(title, version, dateStr, initialCardHTML string) string {
 
     // Expand / collapse audit cards
     function toggleCard(cardId) {
-      const content = document.getElementById('content-' + cardId.replace('audit-', ''));
-      const icon = document.getElementById('icon-' + cardId.replace('audit-', ''));
+      const cleanId = cardId.replace('audit-', '');
+      const content = document.getElementById('content-audit-' + cleanId) || document.getElementById('content-' + cleanId);
+      const icon = document.getElementById('icon-audit-' + cleanId) || document.getElementById('icon-' + cleanId);
       
-      if (content.classList.contains('active')) {
-        content.classList.remove('active');
-        icon.className = 'fas fa-chevron-right';
-      } else {
-        content.classList.add('active');
-        icon.className = 'fas fa-chevron-down';
+      if (content && content.classList) {
+        if (content.classList.contains('active')) {
+          content.classList.remove('active');
+          if (icon) icon.className = 'fas fa-chevron-right';
+        } else {
+          content.classList.add('active');
+          if (icon) icon.className = 'fas fa-chevron-down';
+        }
       }
     }
 
@@ -543,8 +546,10 @@ func getHTMLTemplate(title, version, dateStr, initialCardHTML string) string {
         const renderContainer = cardContent.querySelector('.markdown-rendered');
         
         if (rawMarkdownTemplate && renderContainer) {
-          // Parse raw markdown inside template to HTML
-          const rawMD = rawMarkdownTemplate.innerHTML;
+          // Parse raw markdown safely
+          const rawMD = rawMarkdownTemplate.tagName === 'TEMPLATE' 
+            ? rawMarkdownTemplate.innerHTML 
+            : rawMarkdownTemplate.textContent;
           renderContainer.innerHTML = marked.parse(rawMD);
         }
       });

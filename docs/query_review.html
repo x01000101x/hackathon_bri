@@ -360,18 +360,18 @@
 <!-- AUDITS_INSERT_MARKER -->
     <!-- AUDIT_CARD_v1.0.4_START -->
     <div class="audit-card glass-panel" id="audit-v1-0-4">
-      <div class="card-header">
+      <div class="card-header" onclick="toggleCard('audit-v1-0-4')">
         <div class="header-left">
           <span class="badge badge-card-version">v1.0.4</span>
           <span class="audit-timestamp"><i class="fas fa-clock"></i> 2026-06-10 15:37:18</span>
         </div>
-        <button class="toggle-btn" onclick="toggleCard('audit-v1-0-4')">
+        <button class="toggle-btn">
           <i class="fas fa-chevron-down" id="icon-audit-v1-0-4"></i>
         </button>
       </div>
       <div class="card-content active" id="content-audit-v1-0-4">
         <div class="markdown-rendered"></div>
-        <template class="raw-markdown"># Database Schema, GORM, and Query Performance Audit (v1.0.4)
+        <script type="text/markdown" class="raw-markdown"># Database Schema, GORM, and Query Performance Audit (v1.0.4)
 
 This document provides a rigorous technical audit of the database schema migrations and GORM model implementations introduced in version **v1.0.4**. 
 
@@ -558,24 +558,24 @@ WHERE deleted_at IS NOT NULL;
 DROP INDEX IF EXISTS idx_users_deleted_at;
 DROP INDEX IF EXISTS idx_users_active_created_at;
 DROP TABLE IF EXISTS users;
-\`\`\`</template>
+\`\`\`</script>
       </div>
     </div>
     <!-- AUDIT_CARD_v1.0.4_END -->
     <!-- AUDIT_CARD_v1.0.3_START -->
     <div class="audit-card glass-panel" id="audit-v1-0-3">
-      <div class="card-header">
+      <div class="card-header" onclick="toggleCard('audit-v1-0-3')">
         <div class="header-left">
           <span class="badge badge-card-version">v1.0.3</span>
           <span class="audit-timestamp"><i class="fas fa-clock"></i> 2026-06-10 15:34:09</span>
         </div>
-        <button class="toggle-btn" onclick="toggleCard('audit-v1-0-3')">
+        <button class="toggle-btn">
           <i class="fas fa-chevron-down" id="icon-audit-v1-0-3"></i>
         </button>
       </div>
       <div class="card-content active" id="content-audit-v1-0-3">
         <div class="markdown-rendered"></div>
-        <template class="raw-markdown"># Database Schema, GORM, and Query Performance Audit (v1.0.3)
+        <script type="text/markdown" class="raw-markdown"># Database Schema, GORM, and Query Performance Audit (v1.0.3)
 
 ---
 
@@ -796,24 +796,24 @@ func FindActiveUsers(db *gorm.DB) ([]User, error) {
 		Find(&users).Error
 	return users, err
 }
-\`\`\`</template>
+\`\`\`</script>
       </div>
     </div>
     <!-- AUDIT_CARD_v1.0.3_END -->
     <!-- AUDIT_CARD_v1.0.2_START -->
     <div class="audit-card glass-panel" id="audit-v1-0-2">
-      <div class="card-header">
+      <div class="card-header" onclick="toggleCard('audit-v1-0-2')">
         <div class="header-left">
           <span class="badge badge-card-version">v1.0.2</span>
           <span class="audit-timestamp"><i class="fas fa-clock"></i> 2026-06-10 15:32:55</span>
         </div>
-        <button class="toggle-btn" onclick="toggleCard('audit-v1-0-2')">
+        <button class="toggle-btn">
           <i class="fas fa-chevron-down" id="icon-audit-v1-0-2"></i>
         </button>
       </div>
       <div class="card-content active" id="content-audit-v1-0-2">
         <div class="markdown-rendered"></div>
-        <template class="raw-markdown"># Database Schema, GORM, and Query Performance Audit (v1.0.2)
+        <script type="text/markdown" class="raw-markdown"># Database Schema, GORM, and Query Performance Audit (v1.0.2)
 
 This document provides a rigorous technical audit of the database schema migrations and GORM model implementations introduced in version **v1.0.2**. 
 
@@ -1030,24 +1030,24 @@ func FindActiveUsersPaginated(ctx context.Context, db *gorm.DB, limit int, offse
 
 	return users, err
 }
-\`\`\`</template>
+\`\`\`</script>
       </div>
     </div>
     <!-- AUDIT_CARD_v1.0.2_END -->
     <!-- AUDIT_CARD_v1.0.1_START -->
     <div class="audit-card glass-panel" id="audit-v1-0-1">
-      <div class="card-header">
+      <div class="card-header" onclick="toggleCard('audit-v1-0-1')">
         <div class="header-left">
           <span class="badge badge-card-version">v1.0.1</span>
           <span class="audit-timestamp"><i class="fas fa-clock"></i> 2026-06-10 15:22:08</span>
         </div>
-        <button class="toggle-btn" onclick="toggleCard('audit-v1-0-1')">
+        <button class="toggle-btn">
           <i class="fas fa-chevron-down" id="icon-audit-v1-0-1"></i>
         </button>
       </div>
       <div class="card-content active" id="content-audit-v1-0-1">
         <div class="markdown-rendered"></div>
-        <template class="raw-markdown"># Database Schema, GORM, and Query Performance Audit (v1.0.1)
+        <script type="text/markdown" class="raw-markdown"># Database Schema, GORM, and Query Performance Audit (v1.0.1)
 
 This audit provides a rigorous review of the database schema migrations, GORM model configurations, and query performance characteristics introduced in version \`v1.0.1\`.
 
@@ -1234,24 +1234,24 @@ func FindActiveUsers(db *gorm.DB) ([]User, error) {
 		Error
 	return users, err
 }
-\`\`\`</template>
+\`\`\`</script>
       </div>
     </div>
     <!-- AUDIT_CARD_v1.0.1_END -->
     <!-- AUDIT_CARD_v1.0.1_START -->
     <div class="audit-card glass-panel" id="audit-v1-0-1">
-      <div class="card-header">
+      <div class="card-header" onclick="toggleCard('audit-v1-0-1')">
         <div class="header-left">
           <span class="badge badge-card-version">v1.0.1</span>
           <span class="audit-timestamp"><i class="fas fa-clock"></i> 2026-06-10 15:21:59</span>
         </div>
-        <button class="toggle-btn" onclick="toggleCard('audit-v1-0-1')">
+        <button class="toggle-btn">
           <i class="fas fa-chevron-down" id="icon-audit-v1-0-1"></i>
         </button>
       </div>
       <div class="card-content active" id="content-audit-v1-0-1">
         <div class="markdown-rendered"></div>
-        <template class="raw-markdown"># Database Schema, GORM, and Query Performance Audit (v1.0.1)
+        <script type="text/markdown" class="raw-markdown"># Database Schema, GORM, and Query Performance Audit (v1.0.1)
 
 This audit provides a rigorous technical evaluation of the database schema migrations and GORM model interactions introduced in version **v1.0.1**. 
 
@@ -1420,24 +1420,24 @@ func FindActiveUsers(db *gorm.DB, limit int, offset int) ([]User, error) {
 
 	return users, err
 }
-\`\`\`</template>
+\`\`\`</script>
       </div>
     </div>
     <!-- AUDIT_CARD_v1.0.1_END -->
     <!-- AUDIT_CARD_v1.0.0_START -->
     <div class="audit-card glass-panel" id="audit-v1-0-0">
-      <div class="card-header">
+      <div class="card-header" onclick="toggleCard('audit-v1-0-0')">
         <div class="header-left">
           <span class="badge badge-card-version">v1.0.0</span>
           <span class="audit-timestamp"><i class="fas fa-clock"></i> 2026-06-10 15:19:51</span>
         </div>
-        <button class="toggle-btn" onclick="toggleCard('audit-v1-0-0')">
+        <button class="toggle-btn">
           <i class="fas fa-chevron-down" id="icon-audit-v1-0-0"></i>
         </button>
       </div>
       <div class="card-content active" id="content-audit-v1-0-0">
         <div class="markdown-rendered"></div>
-        <template class="raw-markdown"># Database Schema, GORM, and Query Performance Audit
+        <script type="text/markdown" class="raw-markdown"># Database Schema, GORM, and Query Performance Audit
 
 **Audit Version:** v1.0.0  
 **Status:** Critical Issues Identified (Requires Action)  
@@ -1664,7 +1664,7 @@ func FindActiveUsers(db *gorm.DB) ([]User, error) {
 	err := db.Where("is_active = ?", true).Order("created_at DESC").Find(&users).Error
 	return users, err
 }
-\`\`\`</template>
+\`\`\`</script>
       </div>
     </div>
     <!-- AUDIT_CARD_v1.0.0_END -->
@@ -1681,7 +1681,7 @@ func FindActiveUsers(db *gorm.DB) ([]User, error) {
   <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
 
-  <script>
+    <script>
     // Config marked to use standard safe features
     marked.setOptions({
       breaks: true,
@@ -1690,15 +1690,18 @@ func FindActiveUsers(db *gorm.DB) ([]User, error) {
 
     // Expand / collapse audit cards
     function toggleCard(cardId) {
-      const content = document.getElementById('content-' + cardId.replace('audit-', ''));
-      const icon = document.getElementById('icon-' + cardId.replace('audit-', ''));
+      const cleanId = cardId.replace('audit-', '');
+      const content = document.getElementById('content-audit-' + cleanId) || document.getElementById('content-' + cleanId);
+      const icon = document.getElementById('icon-audit-' + cleanId) || document.getElementById('icon-' + cleanId);
       
-      if (content.classList.contains('active')) {
-        content.classList.remove('active');
-        icon.className = 'fas fa-chevron-right';
-      } else {
-        content.classList.add('active');
-        icon.className = 'fas fa-chevron-down';
+      if (content && content.classList) {
+        if (content.classList.contains('active')) {
+          content.classList.remove('active');
+          if (icon) icon.className = 'fas fa-chevron-right';
+        } else {
+          content.classList.add('active');
+          if (icon) icon.className = 'fas fa-chevron-down';
+        }
       }
     }
 
@@ -1709,8 +1712,10 @@ func FindActiveUsers(db *gorm.DB) ([]User, error) {
         const renderContainer = cardContent.querySelector('.markdown-rendered');
         
         if (rawMarkdownTemplate && renderContainer) {
-          // Parse raw markdown inside template to HTML
-          const rawMD = rawMarkdownTemplate.innerHTML;
+          // Parse raw markdown safely
+          const rawMD = rawMarkdownTemplate.tagName === 'TEMPLATE' 
+            ? rawMarkdownTemplate.innerHTML 
+            : rawMarkdownTemplate.textContent;
           renderContainer.innerHTML = marked.parse(rawMD);
         }
       });

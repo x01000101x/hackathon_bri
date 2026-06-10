@@ -360,18 +360,18 @@
 <!-- AUDITS_INSERT_MARKER -->
     <!-- AUDIT_CARD_v1.0.4_START -->
     <div class="audit-card glass-panel" id="audit-v1-0-4">
-      <div class="card-header">
+      <div class="card-header" onclick="toggleCard('audit-v1-0-4')">
         <div class="header-left">
           <span class="badge badge-card-version">v1.0.4</span>
           <span class="audit-timestamp"><i class="fas fa-clock"></i> 2026-06-10 15:37:18</span>
         </div>
-        <button class="toggle-btn" onclick="toggleCard('audit-v1-0-4')">
+        <button class="toggle-btn">
           <i class="fas fa-chevron-down" id="icon-audit-v1-0-4"></i>
         </button>
       </div>
       <div class="card-content active" id="content-audit-v1-0-4">
         <div class="markdown-rendered"></div>
-        <template class="raw-markdown"># Code Quality, Structural, and Code-Smell Audit (v1.0.4)
+        <script type="text/markdown" class="raw-markdown"># Code Quality, Structural, and Code-Smell Audit (v1.0.4)
 
 ---
 
@@ -435,11 +435,11 @@ return fmt.Sprintf(\`
     ...
     <div class="card-content active" id="content-%s">
         <div class="markdown-rendered"></div>
-        <template class="raw-markdown">%s</template>
+        <script type="text/markdown" class="raw-markdown">%s</script>
     </div>
     ...\`, ..., escapedMarkdown)
 \`\`\`
-* **Vulnerability**: If the LLM output contains the string \`</template>\`, the browser will prematurely close the template tag. Any subsequent text in the LLM output will be parsed as active HTML/JS, leading to a **Cross-Site Scripting (XSS)** or HTML injection vulnerability. This is particularly risky if the agent is run in CI/CD pipelines where the generated HTML is hosted publicly.
+* **Vulnerability**: If the LLM output contains the string \`</script>\`, the browser will prematurely close the template tag. Any subsequent text in the LLM output will be parsed as active HTML/JS, leading to a **Cross-Site Scripting (XSS)** or HTML injection vulnerability. This is particularly risky if the agent is run in CI/CD pipelines where the generated HTML is hosted publicly.
 * **Correction**: Safely encode the Markdown payload using JSON or HTML entity escaping before embedding it in the HTML template.
 
 ### 2. Database Performance Smell: Missing Indexes
@@ -502,7 +502,7 @@ type User struct {
 \`\`\`
 
 ### Recommendation 3: Mitigate HTML/JS Injection Vulnerability
-Instead of injecting raw Markdown into a \`<template>\` tag, safely JSON-encode the Markdown string and embed it inside a \`<script type="application/json">\` tag. This guarantees that characters like \`</template>\` or \`<script>\` cannot break the HTML structure.
+Instead of injecting raw Markdown into a \`<template>\` tag, safely JSON-encode the Markdown string and embed it inside a \`<script type="application/json">\` tag. This guarantees that characters like \`</script>\` or \`<script>\` cannot break the HTML structure.
 
 \`\`\`go
 // agent/html.go
@@ -523,12 +523,12 @@ func generateAuditCardHTML(version, dateStr, markdownReview string) string {
 
 	return fmt.Sprintf(\`    <!-- AUDIT_CARD_%[1]s_START -->
     <div class="audit-card glass-panel" id="%[2]s">
-      <div class="card-header">
+      <div class="card-header" onclick="toggleCard('%[2]s')">
         <div class="header-left">
           <span class="badge badge-card-version">%[1]s</span>
           <span class="audit-timestamp"><i class="fas fa-clock"></i> %[3]s</span>
         </div>
-        <button class="toggle-btn" onclick="toggleCard('%[2]s')">
+        <button class="toggle-btn">
           <i class="fas fa-chevron-down" id="icon-%[2]s"></i>
         </button>
       </div>
@@ -605,24 +605,24 @@ if len(ref) > len("refs/remotes/origin/") {
 		return branch
 	}
 }
-\`\`\`</template>
+\`\`\`</script>
       </div>
     </div>
     <!-- AUDIT_CARD_v1.0.4_END -->
     <!-- AUDIT_CARD_v1.0.3_START -->
     <div class="audit-card glass-panel" id="audit-v1-0-3">
-      <div class="card-header">
+      <div class="card-header" onclick="toggleCard('audit-v1-0-3')">
         <div class="header-left">
           <span class="badge badge-card-version">v1.0.3</span>
           <span class="audit-timestamp"><i class="fas fa-clock"></i> 2026-06-10 15:34:09</span>
         </div>
-        <button class="toggle-btn" onclick="toggleCard('audit-v1-0-3')">
+        <button class="toggle-btn">
           <i class="fas fa-chevron-down" id="icon-audit-v1-0-3"></i>
         </button>
       </div>
       <div class="card-content active" id="content-audit-v1-0-3">
         <div class="markdown-rendered"></div>
-        <template class="raw-markdown"># Code Quality, Structural, and Code-Smell Audit: Version v1.0.3
+        <script type="text/markdown" class="raw-markdown"># Code Quality, Structural, and Code-Smell Audit: Version v1.0.3
 
 ---
 
@@ -686,11 +686,11 @@ In \`agent/html.go\`, the markdown content returned by the LLM is injected direc
 return fmt.Sprintf(\`...
       <div class="card-content active" id="content-%s">
         <div class="markdown-rendered"></div>
-        <template class="raw-markdown">%s</template>
+        <script type="text/markdown" class="raw-markdown">%s</script>
       </div>
 ...\`, ..., escapedMarkdown, ...)
 \`\`\`
-* **Vulnerability**: Although backticks and dollar signs are escaped, **HTML tags are not**. If the LLM generates a response containing \`</template><script>alert(1)</script>\` (either due to prompt injection or malicious code in the git diff), the script will execute in the browser of anyone viewing the report.
+* **Vulnerability**: Although backticks and dollar signs are escaped, **HTML tags are not**. If the LLM generates a response containing \`</script><script>alert(1)</script>\` (either due to prompt injection or malicious code in the git diff), the script will execute in the browser of anyone viewing the report.
 
 ### 2. Security Flaw: Git Command/Argument Injection
 In \`agent/agent.go\`, the \`getGitDiff\` function executes:
@@ -742,7 +742,7 @@ func generateAuditCardHTML(version, dateStr, markdownReview string) string {
       ...
       <div class="card-content active" id="content-%s">
         <div class="markdown-rendered"></div>
-        <template class="raw-markdown">%s</template>
+        <script type="text/markdown" class="raw-markdown">%s</script>
       </div>
     </div>\`, version, cardID, cardID, escapedMarkdown)
 }
@@ -833,24 +833,24 @@ func getGitDiff(ctx context.Context, baseBranch, filePattern string) (string, er
 	}
 	return string(out), nil
 }
-\`\`\`</template>
+\`\`\`</script>
       </div>
     </div>
     <!-- AUDIT_CARD_v1.0.3_END -->
     <!-- AUDIT_CARD_v1.0.2_START -->
     <div class="audit-card glass-panel" id="audit-v1-0-2">
-      <div class="card-header">
+      <div class="card-header" onclick="toggleCard('audit-v1-0-2')">
         <div class="header-left">
           <span class="badge badge-card-version">v1.0.2</span>
           <span class="audit-timestamp"><i class="fas fa-clock"></i> 2026-06-10 15:32:55</span>
         </div>
-        <button class="toggle-btn" onclick="toggleCard('audit-v1-0-2')">
+        <button class="toggle-btn">
           <i class="fas fa-chevron-down" id="icon-audit-v1-0-2"></i>
         </button>
       </div>
       <div class="card-content active" id="content-audit-v1-0-2">
         <div class="markdown-rendered"></div>
-        <template class="raw-markdown"># Code Quality, Structural, and Code-Smell Audit (v1.0.2)
+        <script type="text/markdown" class="raw-markdown"># Code Quality, Structural, and Code-Smell Audit (v1.0.2)
 
 This document provides a comprehensive technical audit of the changes introduced in version \`v1.0.2\`. The review evaluates architectural design, Go idiomatic patterns, error handling, security, performance, and code smells.
 
@@ -935,9 +935,9 @@ If the first \`git diff\` command fails because the 5-second timeout expired (\`
 ### 3. HTML Injection / XSS Vulnerability
 In \`agent/html.go\`, the markdown content returned by the LLM is injected into a \`<template>\` tag:
 \`\`\`go
-<template class="raw-markdown">%s</template>
+<script type="text/markdown" class="raw-markdown">%s</script>
 \`\`\`
-While backticks and dollar signs are escaped, if the generated markdown contains a closing \`</template>\` tag followed by malicious \`<script>\` tags, it could execute arbitrary JavaScript when the HTML report is opened in a browser. Since the LLM processes untrusted git diffs (which may contain malicious code comments), this is a potential Cross-Site Scripting (XSS) vector.
+While backticks and dollar signs are escaped, if the generated markdown contains a closing \`</script>\` tag followed by malicious \`<script>\` tags, it could execute arbitrary JavaScript when the HTML report is opened in a browser. Since the LLM processes untrusted git diffs (which may contain malicious code comments), this is a potential Cross-Site Scripting (XSS) vector.
 
 ### 4. Missing Database Index
 In \`models/user.go\`, \`FindActiveUsers\` queries the database using:
@@ -1072,24 +1072,24 @@ func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
 	}
 	return nil
 }
-\`\`\`</template>
+\`\`\`</script>
       </div>
     </div>
     <!-- AUDIT_CARD_v1.0.2_END -->
     <!-- AUDIT_CARD_v1.0.1_START -->
     <div class="audit-card glass-panel" id="audit-v1-0-1">
-      <div class="card-header">
+      <div class="card-header" onclick="toggleCard('audit-v1-0-1')">
         <div class="header-left">
           <span class="badge badge-card-version">v1.0.1</span>
           <span class="audit-timestamp"><i class="fas fa-clock"></i> 2026-06-10 15:22:08</span>
         </div>
-        <button class="toggle-btn" onclick="toggleCard('audit-v1-0-1')">
+        <button class="toggle-btn">
           <i class="fas fa-chevron-down" id="icon-audit-v1-0-1"></i>
         </button>
       </div>
       <div class="card-content active" id="content-audit-v1-0-1">
         <div class="markdown-rendered"></div>
-        <template class="raw-markdown"># Code Quality, Structural, and Code-Smell Audit (v1.0.1)
+        <script type="text/markdown" class="raw-markdown"># Code Quality, Structural, and Code-Smell Audit (v1.0.1)
 
 This document provides a comprehensive code quality, structural, and security audit of the changes introduced in version \`v1.0.1\`. 
 
@@ -1157,7 +1157,7 @@ if u.Email == "" {
 ### ⚠️ High Risk: Cross-Site Scripting (XSS) in HTML Reports
 In \`html.go\`, the markdown review generated by the LLM is injected directly into a \`<template>\` tag inside the HTML report:
 \`\`\`go
-return fmt.Sprintf(\`... <template class="raw-markdown">%s</template> ...\`, escapedMarkdown)
+return fmt.Sprintf(\`... <script type="text/markdown" class="raw-markdown">%s</script> ...\`, escapedMarkdown)
 \`\`\`
 In the browser, \`marked.parse()\` is called on this raw content. Although backticks and dollar signs are escaped, **arbitrary HTML tags are not sanitized**. If an attacker crafts a malicious git commit containing a payload designed to exploit prompt injection, they could force the LLM to output malicious \`<script>\` tags. When another developer opens the generated \`code_review.html\`, this script will execute in their browser (Stored XSS).
 
@@ -1372,24 +1372,24 @@ Update the HTML template to include Subresource Integrity (SRI) hashes and use a
     });
   });
 </script>
-\`\`\`</template>
+\`\`\`</script>
       </div>
     </div>
     <!-- AUDIT_CARD_v1.0.1_END -->
     <!-- AUDIT_CARD_v1.0.1_START -->
     <div class="audit-card glass-panel" id="audit-v1-0-1">
-      <div class="card-header">
+      <div class="card-header" onclick="toggleCard('audit-v1-0-1')">
         <div class="header-left">
           <span class="badge badge-card-version">v1.0.1</span>
           <span class="audit-timestamp"><i class="fas fa-clock"></i> 2026-06-10 15:21:59</span>
         </div>
-        <button class="toggle-btn" onclick="toggleCard('audit-v1-0-1')">
+        <button class="toggle-btn">
           <i class="fas fa-chevron-down" id="icon-audit-v1-0-1"></i>
         </button>
       </div>
       <div class="card-content active" id="content-audit-v1-0-1">
         <div class="markdown-rendered"></div>
-        <template class="raw-markdown"># Code Quality, Structural, and Code-Smell Audit (v1.0.1)
+        <script type="text/markdown" class="raw-markdown"># Code Quality, Structural, and Code-Smell Audit (v1.0.1)
 
 This audit provides a comprehensive review of the changes introduced in version \`v1.0.1\`. The codebase introduces an automated, AI-driven documentation agent that analyzes Git diffs, queries the Gemini LLM, and generates/updates HTML reports. It also introduces a basic GORM-based \`User\` model.
 
@@ -1455,11 +1455,11 @@ In \`agent/html.go\`, the LLM-generated markdown is injected directly into the H
 return fmt.Sprintf(\`...
       <div class="card-content active" id="content-%s">
         <div class="markdown-rendered"></div>
-        <template class="raw-markdown">%s</template>
+        <script type="text/markdown" class="raw-markdown">%s</script>
       </div>
 ...\`, ..., escapedMarkdown)
 \`\`\`
-*   **Vulnerability**: If the LLM output contains malicious payloads (e.g., \`</template><script>alert(1)</script>\`)—either due to prompt injection via the git diff or an untrusted LLM response—it will break out of the \`<template>\` tag and execute arbitrary JavaScript when a developer opens the HTML report in a browser.
+*   **Vulnerability**: If the LLM output contains malicious payloads (e.g., \`</script><script>alert(1)</script>\`)—either due to prompt injection via the git diff or an untrusted LLM response—it will break out of the \`<template>\` tag and execute arbitrary JavaScript when a developer opens the HTML report in a browser.
 
 ### 2. Command Injection Risk & Missing Timeouts (Medium)
 In \`agent/agent.go\` (\`getGitDiff\` and \`runGitVerify\`):
@@ -1497,18 +1497,18 @@ import (
 const cardTemplate = \`
     <!-- AUDIT_CARD_{{.Version}}_START -->
     <div class="audit-card glass-panel" id="{{.CardID}}">
-      <div class="card-header">
+      <div class="card-header" onclick="toggleCard('{{.CardID}}')">
         <div class="header-left">
           <span class="badge badge-card-version">{{.Version}}</span>
           <span class="audit-timestamp"><i class="fas fa-clock"></i> {{.DateStr}}</span>
         </div>
-        <button class="toggle-btn" onclick="toggleCard('{{.CardID}}')">
+        <button class="toggle-btn">
           <i class="fas fa-chevron-down" id="icon-{{.CardID}}"></i>
         </button>
       </div>
       <div class="card-content active" id="content-{{.CardID}}">
         <div class="markdown-rendered"></div>
-        <template class="raw-markdown">{{.Markdown}}</template>
+        <script type="text/markdown" class="raw-markdown">{{.Markdown}}</script>
       </div>
     </div>
     <!-- AUDIT_CARD_{{.Version}}_END -->\`
@@ -1624,24 +1624,24 @@ type User struct {
 	UpdatedAt time.Time      \`json:"updated_at"\`
 	DeletedAt gorm.DeletedAt \`gorm:"index" json:"-"\`
 }
-\`\`\`</template>
+\`\`\`</script>
       </div>
     </div>
     <!-- AUDIT_CARD_v1.0.1_END -->
     <!-- AUDIT_CARD_v1.0.0_START -->
     <div class="audit-card glass-panel" id="audit-v1-0-0">
-      <div class="card-header">
+      <div class="card-header" onclick="toggleCard('audit-v1-0-0')">
         <div class="header-left">
           <span class="badge badge-card-version">v1.0.0</span>
           <span class="audit-timestamp"><i class="fas fa-clock"></i> 2026-06-10 15:19:51</span>
         </div>
-        <button class="toggle-btn" onclick="toggleCard('audit-v1-0-0')">
+        <button class="toggle-btn">
           <i class="fas fa-chevron-down" id="icon-audit-v1-0-0"></i>
         </button>
       </div>
       <div class="card-content active" id="content-audit-v1-0-0">
         <div class="markdown-rendered"></div>
-        <template class="raw-markdown"># Code Quality, Structural, and Code-Smell Audit: Version v1.0.0
+        <script type="text/markdown" class="raw-markdown"># Code Quality, Structural, and Code-Smell Audit: Version v1.0.0
 
 ---
 
@@ -1855,7 +1855,7 @@ func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
 	}
 	return nil
 }
-\`\`\`</template>
+\`\`\`</script>
       </div>
     </div>
     <!-- AUDIT_CARD_v1.0.0_END -->
@@ -1872,7 +1872,7 @@ func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
   <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
 
-  <script>
+    <script>
     // Config marked to use standard safe features
     marked.setOptions({
       breaks: true,
@@ -1881,15 +1881,18 @@ func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
 
     // Expand / collapse audit cards
     function toggleCard(cardId) {
-      const content = document.getElementById('content-' + cardId.replace('audit-', ''));
-      const icon = document.getElementById('icon-' + cardId.replace('audit-', ''));
+      const cleanId = cardId.replace('audit-', '');
+      const content = document.getElementById('content-audit-' + cleanId) || document.getElementById('content-' + cleanId);
+      const icon = document.getElementById('icon-audit-' + cleanId) || document.getElementById('icon-' + cleanId);
       
-      if (content.classList.contains('active')) {
-        content.classList.remove('active');
-        icon.className = 'fas fa-chevron-right';
-      } else {
-        content.classList.add('active');
-        icon.className = 'fas fa-chevron-down';
+      if (content && content.classList) {
+        if (content.classList.contains('active')) {
+          content.classList.remove('active');
+          if (icon) icon.className = 'fas fa-chevron-right';
+        } else {
+          content.classList.add('active');
+          if (icon) icon.className = 'fas fa-chevron-down';
+        }
       }
     }
 
@@ -1900,8 +1903,10 @@ func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
         const renderContainer = cardContent.querySelector('.markdown-rendered');
         
         if (rawMarkdownTemplate && renderContainer) {
-          // Parse raw markdown inside template to HTML
-          const rawMD = rawMarkdownTemplate.innerHTML;
+          // Parse raw markdown safely
+          const rawMD = rawMarkdownTemplate.tagName === 'TEMPLATE' 
+            ? rawMarkdownTemplate.innerHTML 
+            : rawMarkdownTemplate.textContent;
           renderContainer.innerHTML = marked.parse(rawMD);
         }
       });
