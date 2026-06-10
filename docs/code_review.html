@@ -341,7 +341,7 @@
   </style>
 </head>
 <body>
-  <!-- AGENT_VERSION: v1.0.3 -->
+  <!-- AGENT_VERSION: v1.0.4 -->
   <div class="container">
     <header>
       <div class="brand-section">
@@ -352,12 +352,263 @@
       
       <div class="metadata-bar">
         <span class="badge badge-version"><i class="fas fa-code-branch"></i> <span id="latest-version-badge">v1.0.0</span></span>
-        <span class="badge badge-updated"><i class="fas fa-sync-alt"></i> Last Sync: <span id="last-updated-date">2026-06-10 15:34:09</span></span>
+        <span class="badge badge-updated"><i class="fas fa-sync-alt"></i> Last Sync: <span id="last-updated-date">2026-06-10 15:37:18</span></span>
       </div>
     </header>
 
     <main class="audits-timeline">
 <!-- AUDITS_INSERT_MARKER -->
+    <!-- AUDIT_CARD_v1.0.4_START -->
+    <div class="audit-card glass-panel" id="audit-v1-0-4">
+      <div class="card-header">
+        <div class="header-left">
+          <span class="badge badge-card-version">v1.0.4</span>
+          <span class="audit-timestamp"><i class="fas fa-clock"></i> 2026-06-10 15:37:18</span>
+        </div>
+        <button class="toggle-btn" onclick="toggleCard('audit-v1-0-4')">
+          <i class="fas fa-chevron-down" id="icon-audit-v1-0-4"></i>
+        </button>
+      </div>
+      <div class="card-content active" id="content-audit-v1-0-4">
+        <div class="markdown-rendered"></div>
+        <template class="raw-markdown"># Code Quality, Structural, and Code-Smell Audit (v1.0.4)
+
+---
+
+## 1. Summary of Code Modifications
+
+The changes introduced in version **v1.0.4** establish an automated, AI-driven documentation and code review pipeline. The update introduces two primary functional areas:
+
+1. **The AI Documentation Agent (\`/agent\` and \`main.go\`)**:
+   * **\`agent.go\`**: Orchestrates the workflow. It detects the Git base branch, extracts Go and SQL diffs, resolves the application version, calls the Gemini LLM API, and updates HTML reports.
+   * **\`html.go\` & \`html_test.go\`**: Manages HTML report generation, version auto-incrementing via regex parsing of existing HTML files, and client-side rendering of Markdown using \`marked.js\` and \`Prism.js\`.
+   * **\`llm.go\`**: Implements a reusable client wrapper around the official Google Generative AI SDK (\`github.com/google/generative-ai-go/genai\`).
+   * **\`main.go\`**: Provides a CLI entry point with a \`generate\` subcommand and a \`-version\` flag override.
+
+2. **Database Models (\`/models\`)**:
+   * **\`user.go\`**: Introduces a GORM \`User\` model, a \`BeforeCreate\` validation hook, and a query helper \`FindActiveUsers\`.
+
+---
+
+## 2. Structural Adjustments & Architecture
+
+### Package Layout & Dependency Flow
+* **Separation of Concerns**: The separation between the CLI entry point (\`main.go\`), the core logic (\`agent\`), and the database models (\`models\`) is clean. 
+* **Coupling**: The \`agent\` package is highly coupled with both the file system (\`os\` operations) and external processes (\`git\` execution). While acceptable for a CLI utility, this makes unit testing difficult without mocking the file system or the Git environment.
+* **Context Propagation**: Context is correctly propagated from \`RunGenerate\` down to the Git commands and LLM API calls. This ensures that timeouts (e.g., the overall 2-minute timeout or the 3-second Git timeout) are respected.
+
+---
+
+## 3. Go Quality, Idiomatic Style & Error Handling
+
+### 1. Highly Unidiomatic GORM Hook Error
+In \`models/user.go\`, the \`BeforeCreate\` hook returns \`gorm.ErrRecordNotFound\` when validation fails:
+\`\`\`go
+if u.Email == "" {
+    return gorm.ErrRecordNotFound // Dummy error for validation
+}
+\`\`\`
+* **Issue**: \`gorm.ErrRecordNotFound\` is a specific database query error indicating that a requested row does not exist. Returning it for a validation failure is highly misleading and will break error-handling logic upstream.
+* **Correction**: Return a custom validation error or a generic validation error.
+
+### 2. Manual String Trimming
+In \`agent/agent.go\`, trailing newlines from Git command outputs are trimmed using a manual loop:
+\`\`\`go
+for len(branch) > 0 && (branch[len(branch)-1] == '\n' || branch[len(branch)-1] == '\r') {
+    branch = branch[:len(branch)-1]
+}
+\`\`\`
+* **Issue**: This is verbose and reinventing the wheel.
+* **Correction**: Use \`strings.TrimSpace\` or \`strings.TrimRight(ref, "\r\n")\`.
+
+### 3. Error Wrapping
+While errors are formatted nicely using \`fmt.Errorf("...: %v", err)\`, using \`%w\` instead of \`%v\` is preferred in modern Go (1.13+) when you want to allow the caller to inspect the underlying error using \`errors.Is\` or \`errors.As\`.
+
+---
+
+## 4. Code Smells & Security Flaws
+
+### 1. Critical Security Flaw: HTML/JS Injection (XSS) via LLM Output
+In \`agent/html.go\`, the raw Markdown returned by the LLM is injected directly into a \`<template>\` tag:
+\`\`\`go
+return fmt.Sprintf(\`
+    ...
+    <div class="card-content active" id="content-%s">
+        <div class="markdown-rendered"></div>
+        <template class="raw-markdown">%s</template>
+    </div>
+    ...\`, ..., escapedMarkdown)
+\`\`\`
+* **Vulnerability**: If the LLM output contains the string \`</template>\`, the browser will prematurely close the template tag. Any subsequent text in the LLM output will be parsed as active HTML/JS, leading to a **Cross-Site Scripting (XSS)** or HTML injection vulnerability. This is particularly risky if the agent is run in CI/CD pipelines where the generated HTML is hosted publicly.
+* **Correction**: Safely encode the Markdown payload using JSON or HTML entity escaping before embedding it in the HTML template.
+
+### 2. Database Performance Smell: Missing Indexes
+In \`models/user.go\`, the function \`FindActiveUsers\` executes the following query:
+\`\`\`go
+err := db.Where("is_active = ?", true).Order("created_at DESC").Find(&users).Error
+\`\`\`
+* **Issue**: The \`User\` struct defines indexes on \`Email\` and \`DeletedAt\`, but **no index** exists on \`IsActive\` or \`CreatedAt\`. As the \`users\` table grows, this query will trigger a full table scan followed by an expensive filesort.
+* **Correction**: Add a composite index on \`(is_active, created_at DESC)\`.
+
+### 3. Non-Atomic File Writes
+In \`agent/html.go\`, \`UpdateHTMLReport\` writes directly to the target file:
+\`\`\`go
+return os.WriteFile(filePath, []byte(finalHTML), 0644)
+\`\`\`
+* **Issue**: If the write operation is interrupted (due to a crash, disk full, or power loss), the existing report file will be corrupted or left partially written.
+* **Correction**: Write to a temporary file in the same directory and perform an atomic rename (\`os.Rename\`).
+
+---
+
+## 5. Actionable Recommendations
+
+### Recommendation 1: Fix GORM Hook Validation Error
+Replace the misleading \`gorm.ErrRecordNotFound\` with a dedicated validation error.
+
+\`\`\`go
+// models/user.go
+package models
+
+import (
+	"errors"
+	"gorm.io/gorm"
+)
+
+var ErrEmailRequired = errors.New("user email is required")
+
+func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
+	if u.Email == "" {
+		return ErrEmailRequired
+	}
+	return nil
+}
+\`\`\`
+
+### Recommendation 2: Add Composite Index to GORM Model
+Optimize the \`FindActiveUsers\` query by adding a composite index on \`is_active\` and \`created_at\`.
+
+\`\`\`go
+// models/user.go
+type User struct {
+	ID        uint           \`gorm:"primaryKey" json:"id"\`
+	Email     string         \`gorm:"uniqueIndex;type:varchar(255);not null" json:"email"\`
+	Password  string         \`gorm:"type:varchar(255);not null" json:"-"\`
+	Name      string         \`gorm:"type:varchar(100)" json:"name"\`
+	IsActive  bool           \`gorm:"default:true;index:idx_users_active_created,priority:1" json:"is_active"\`
+	CreatedAt time.Time      \`gorm:"index:idx_users_active_created,priority:2" json:"created_at"\`
+	UpdatedAt time.Time      \`json:"updated_at"\`
+	DeletedAt gorm.DeletedAt \`gorm:"index" json:"-"\`
+}
+\`\`\`
+
+### Recommendation 3: Mitigate HTML/JS Injection Vulnerability
+Instead of injecting raw Markdown into a \`<template>\` tag, safely JSON-encode the Markdown string and embed it inside a \`<script type="application/json">\` tag. This guarantees that characters like \`</template>\` or \`<script>\` cannot break the HTML structure.
+
+\`\`\`go
+// agent/html.go
+import (
+	"encoding/json"
+)
+
+func generateAuditCardHTML(version, dateStr, markdownReview string) string {
+	// Safely JSON-encode the markdown to escape all HTML-breaking characters
+	jsonBytes, err := json.Marshal(markdownReview)
+	if err != nil {
+		// Fallback to empty string if encoding fails
+		jsonBytes = []byte(\`""\`)
+	}
+	safeJSONMarkdown := string(jsonBytes)
+
+	cardID := "audit-" + strings.ReplaceAll(version, ".", "-")
+
+	return fmt.Sprintf(\`    <!-- AUDIT_CARD_%[1]s_START -->
+    <div class="audit-card glass-panel" id="%[2]s">
+      <div class="card-header">
+        <div class="header-left">
+          <span class="badge badge-card-version">%[1]s</span>
+          <span class="audit-timestamp"><i class="fas fa-clock"></i> %[3]s</span>
+        </div>
+        <button class="toggle-btn" onclick="toggleCard('%[2]s')">
+          <i class="fas fa-chevron-down" id="icon-%[2]s"></i>
+        </button>
+      </div>
+      <div class="card-content active" id="content-%[2]s">
+        <div class="markdown-rendered"></div>
+        <script type="application/json" class="raw-markdown">%[4]s</script>
+      </div>
+    </div>
+    <!-- AUDIT_CARD_%[1]s_END -->\`, version, cardID, dateStr, safeJSONMarkdown)
+}
+\`\`\`
+
+Update the client-side JavaScript parser in \`getHTMLTemplate\` to read from the JSON script tag:
+
+\`\`\`javascript
+// Inside agent/html.go -> getHTMLTemplate() JavaScript section
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.card-content').forEach(cardContent => {
+    const jsonScript = cardContent.querySelector('.raw-markdown');
+    const renderContainer = cardContent.querySelector('.markdown-rendered');
+    
+    if (jsonScript && renderContainer) {
+      try {
+        // Safely parse the JSON-encoded string
+        const rawMD = JSON.parse(jsonScript.textContent);
+        renderContainer.innerHTML = marked.parse(rawMD);
+      } catch (e) {
+        console.error("Failed to parse markdown JSON:", e);
+      }
+    }
+  });
+  
+  if (window.Prism) {
+    Prism.highlightAll();
+  }
+});
+\`\`\`
+
+### Recommendation 4: Implement Atomic File Writes
+Prevent file corruption by writing to a temporary file first, then renaming it.
+
+\`\`\`go
+// agent/html.go
+import (
+	"io/fs"
+)
+
+func atomicWriteFile(filename string, data []byte, perm fs.FileMode) error {
+	tmpFile := filename + ".tmp"
+	if err := os.WriteFile(tmpFile, data, perm); err != nil {
+		return err
+	}
+	
+	if err := os.Rename(tmpFile, filename); err != nil {
+		_ = os.Remove(tmpFile) // Clean up temp file on failure
+		return err
+	}
+	return nil
+}
+
+// In UpdateHTMLReport, replace os.WriteFile with:
+return atomicWriteFile(filePath, []byte(finalHTML), 0644)
+\`\`\`
+
+### Recommendation 5: Simplify Git Output Trimming
+Refactor the manual trimming loop in \`getBaseBranch\` to use standard library functions.
+
+\`\`\`go
+// agent/agent.go
+if len(ref) > len("refs/remotes/origin/") {
+	branch := ref[len("refs/remotes/origin/"):]
+	branch = strings.TrimSpace(branch) // Replaces manual loop
+	if runGitVerify(gitCtx, "origin/"+branch) || runGitVerify(gitCtx, branch) {
+		return branch
+	}
+}
+\`\`\`</template>
+      </div>
+    </div>
+    <!-- AUDIT_CARD_v1.0.4_END -->
     <!-- AUDIT_CARD_v1.0.3_START -->
     <div class="audit-card glass-panel" id="audit-v1-0-3">
       <div class="card-header">
