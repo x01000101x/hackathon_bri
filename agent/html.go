@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"encoding/base64"
 	"fmt"
 	"os"
 	"regexp"
@@ -113,11 +114,7 @@ func UpdateHTMLReport(filePath, title, version, dateStr, markdownReview string) 
 
 // generateAuditCardHTML renders a self-contained card for a specific audit version
 func generateAuditCardHTML(version, dateStr, markdownReview string) string {
-	// Escape backticks in markdown to prevent breaking HTML/JS template literals
-	escapedMarkdown := strings.ReplaceAll(markdownReview, "`", "\\`")
-	// Escape dollar signs to prevent template literal interpolation in Javascript
-	escapedMarkdown = strings.ReplaceAll(escapedMarkdown, "$", "\\$")
-
+	encodedMarkdown := base64.StdEncoding.EncodeToString([]byte(markdownReview))
 	cardID := "audit-" + strings.ReplaceAll(version, ".", "-")
 
 	return fmt.Sprintf(`    <!-- AUDIT_CARD_%s_START -->
@@ -133,10 +130,10 @@ func generateAuditCardHTML(version, dateStr, markdownReview string) string {
       </div>
       <div class="card-content active" id="content-%s">
         <div class="markdown-rendered"></div>
-        <script type="text/markdown" class="raw-markdown">%s</script>
+        <div class="raw-markdown-base64" style="display:none">%s</div>
       </div>
     </div>
-    <!-- AUDIT_CARD_%s_END -->`, version, cardID, cardID, version, dateStr, cardID, cardID, escapedMarkdown, version)
+    <!-- AUDIT_CARD_%s_END -->`, version, cardID, cardID, version, dateStr, cardID, cardID, encodedMarkdown, version)
 }
 
 // getHTMLTemplate generates the full base HTML template with CSS styling
@@ -543,13 +540,26 @@ func getHTMLTemplate(title, version, dateStr, initialCardHTML string) string {
     document.addEventListener('DOMContentLoaded', () => {
       document.querySelectorAll('.card-content').forEach(cardContent => {
         const rawMarkdownTemplate = cardContent.querySelector('.raw-markdown');
+        const base64Container = cardContent.querySelector('.raw-markdown-base64');
         const renderContainer = cardContent.querySelector('.markdown-rendered');
         
-        if (rawMarkdownTemplate && renderContainer) {
-          // Parse raw markdown safely
-          const rawMD = rawMarkdownTemplate.tagName === 'TEMPLATE' 
+        let rawMD = "";
+        if (base64Container && renderContainer) {
+          try {
+            // Decode raw markdown safely from Base64 (supports non-ASCII characters natively)
+            const b64 = base64Container.textContent.trim();
+            rawMD = decodeURIComponent(escape(atob(b64)));
+          } catch (e) {
+            console.error("Failed to decode base64 markdown:", e);
+          }
+        } else if (rawMarkdownTemplate && renderContainer) {
+          // Fallback to legacy template/script tags if they exist
+          rawMD = rawMarkdownTemplate.tagName === 'TEMPLATE' 
             ? rawMarkdownTemplate.innerHTML 
             : rawMarkdownTemplate.textContent;
+        }
+
+        if (renderContainer && rawMD) {
           renderContainer.innerHTML = marked.parse(rawMD);
         }
       });
