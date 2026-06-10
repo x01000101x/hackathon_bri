@@ -1,0 +1,6 @@
+# Binaries
+doc-agent
+
+# Go test caches and temp files
+*.test
+*.out
