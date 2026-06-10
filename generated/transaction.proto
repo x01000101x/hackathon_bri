@@ -1,0 +1,151 @@
+syntax = "proto3";
+
+// Package transaction.v2 defines the gRPC service for managing financial transactions.
+// This package is part of the migration from a legacy REST API to a gRPC-based
+// high-performance endpoint, focusing on scalability, strict schema enforcement,
+// and real-time streaming capabilities.
+package transaction.v2;
+
+import "google/protobuf/timestamp.proto";
+
+// go_package specifies the Go package to be used for the generated code.
+// This helps organize generated files within the project's Go module.
+option go_package = "github.com/fintech/transaction/v2";
+
+// TxStatus defines the possible states a financial transaction can be in.
+enum TxStatus {
+  // TX_STATUS_UNSPECIFIED is the default, uninitialized status.
+  TX_STATUS_UNSPECIFIED = 0;
+  // PENDING indicates the transaction has been submitted and is awaiting processing.
+  PENDING = 1;
+  // SUCCESS indicates the transaction has been successfully processed and completed.
+  SUCCESS = 2;
+  // FAILED indicates the transaction processing failed due to an error.
+  FAILED = 3;
+}
+
+// TransactionRequest represents a request to initiate a new financial transaction.
+// It contains all necessary details for processing a payment or transfer.
+message TransactionRequest {
+  // transaction_id is a unique identifier for the transaction.
+  // Must be a UUID v4 string.
+  string transaction_id = 1;
+
+  // amount is the transaction amount in minor currency units (e.g., cents for USD).
+  // This field is required.
+  int64 amount = 2;
+
+  // currency_code is the ISO 4217 3-character currency code (e.g., "USD", "EUR").
+  // This field is required.
+  string currency_code = 3;
+
+  // source_account_id is the internal UUID of the account from which funds are debited.
+  // This field is required.
+  string source_account_id = 4;
+
+  // dest_account_id is the internal UUID of the account to which funds are credited.
+  // This field is required.
+  string dest_account_id = 5;
+
+  // created_at is the timestamp when the transaction request was initiated.
+  // This field is required.
+  google.protobuf.Timestamp created_at = 6;
+
+  // metadata is an optional map for arbitrary key-value pairs associated with the transaction.
+  // It can be used for additional context or custom data.
+  map<string, string> metadata = 7;
+}
+
+// TransactionResponse represents the outcome or current state of a financial transaction.
+// It includes core transaction details and its processing status.
+message TransactionResponse {
+  // transaction_id is the unique identifier for the transaction.
+  // Corresponds to the ID provided in the TransactionRequest.
+  string transaction_id = 1;
+
+  // status indicates the current processing status of the transaction.
+  // This field is required.
+  TxStatus status = 2;
+
+  // amount is the transaction amount in minor currency units (e.g., cents for USD).
+  // This field is required and reflects the amount from the original request.
+  int64 amount = 3;
+
+  // currency_code is the ISO 4217 3-character currency code (e.g., "USD", "EUR").
+  // This field is required and reflects the currency from the original request.
+  string currency_code = 4;
+
+  // source_account_id is the internal UUID of the source account.
+  // This field is required and reflects the source from the original request.
+  string source_account_id = 5;
+
+  // dest_account_id is the internal UUID of the destination account.
+  // This field is required and reflects the destination from the original request.
+  string dest_account_id = 6;
+
+  // created_at is the timestamp when the transaction was originally initiated.
+  // This field is required and reflects the creation time from the original request.
+  google.protobuf.Timestamp created_at = 7;
+
+  // updated_at is the timestamp when the transaction's status was last updated.
+  // This field is required.
+  google.protobuf.Timestamp updated_at = 8;
+
+  // metadata is an optional map for arbitrary key-value pairs associated with the transaction.
+  // It reflects the metadata from the original request.
+  map<string, string> metadata = 9;
+
+  // message provides an optional human-readable message related to the transaction status,
+  // such as success details or error explanations.
+  string message = 10;
+}
+
+// GetTransactionRequest is used to retrieve the details of a specific transaction
+// by its unique identifier.
+message GetTransactionRequest {
+  // transaction_id is the unique identifier of the transaction to retrieve.
+  // Must be a UUID v4 string. This field is required.
+  string transaction_id = 1;
+}
+
+// StreamStatusRequest is an empty message used to initiate a server-side stream
+// for real-time transaction status updates.
+message StreamStatusRequest {
+  // No fields are explicitly defined for this request type as per BRD.
+  // It simply triggers the streaming of status updates.
+}
+
+// StatusUpdate represents a real-time update on the status of a specific transaction.
+// These messages are streamed from the server to clients.
+message StatusUpdate {
+  // transaction_id is the unique identifier of the transaction being updated.
+  // Must be a UUID v4 string. This field is required.
+  string transaction_id = 1;
+
+  // status indicates the new processing status of the transaction.
+  // This field is required.
+  TxStatus status = 2;
+
+  // timestamp is the time when this specific status update occurred.
+  // This field is required.
+  google.protobuf.Timestamp timestamp = 3;
+
+  // message provides an optional human-readable message with details about this status update.
+  string message = 4;
+}
+
+// TransactionService defines the gRPC service contract for managing financial transactions.
+// It provides RPCs for processing, retrieving, and streaming transaction updates.
+service TransactionService {
+  // ProcessTransaction handles the submission of a new financial transaction.
+  // It is a unary RPC that returns the initial processing status of the transaction.
+  rpc ProcessTransaction (TransactionRequest) returns (TransactionResponse);
+
+  // GetTransaction retrieves the complete details and current status of a transaction
+  // identified by its unique ID. It is a unary RPC.
+  rpc GetTransaction (GetTransactionRequest) returns (TransactionResponse);
+
+  // StreamStatus provides a real-time, server-side stream of transaction status updates.
+  // Clients can subscribe to receive updates as transactions progress through their lifecycle.
+  rpc StreamStatus (StreamStatusRequest) returns (stream StatusUpdate);
+}
