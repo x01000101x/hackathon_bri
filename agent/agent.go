@@ -102,17 +102,35 @@ func getBaseBranch(ctx context.Context) string {
 	gitCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
-	if runGitVerify(gitCtx, "master") {
-		return "master"
+	// 1. Try to detect default remote branch from origin/HEAD
+	cmd := exec.CommandContext(gitCtx, "git", "symbolic-ref", "refs/remotes/origin/HEAD")
+	if out, err := cmd.Output(); err == nil {
+		ref := string(out)
+		// e.g. "refs/remotes/origin/main\n" -> "main"
+		if len(ref) > len("refs/remotes/origin/") {
+			branch := ref[len("refs/remotes/origin/"):]
+			// Trim trailing whitespace or carriage returns
+			for len(branch) > 0 && (branch[len(branch)-1] == '\n' || branch[len(branch)-1] == '\r') {
+				branch = branch[:len(branch)-1]
+			}
+			if runGitVerify(gitCtx, "origin/"+branch) || runGitVerify(gitCtx, branch) {
+				return branch
+			}
+		}
 	}
+
+	// 2. Prioritize main/origin/main over master/origin/master
 	if runGitVerify(gitCtx, "main") {
 		return "main"
 	}
-	if runGitVerify(gitCtx, "origin/master") {
-		return "origin/master"
-	}
 	if runGitVerify(gitCtx, "origin/main") {
 		return "origin/main"
+	}
+	if runGitVerify(gitCtx, "master") {
+		return "master"
+	}
+	if runGitVerify(gitCtx, "origin/master") {
+		return "origin/master"
 	}
 	return "HEAD~1"
 }
