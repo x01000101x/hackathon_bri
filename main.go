@@ -1,28 +1,24 @@
 package main
 
 import (
-	"archive/zip"
-	"bytes"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
+	"bytes"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
-	"unicode"
 )
 
-// ─── Gemini API types ───────────────────────────────────────────────────────
+// ─── Gemini API Configuration ───────────────────────────────────────────────
 
 const (
 	geminiAPI   = "https://generativelanguage.googleapis.com/v1beta/models"
-	geminiModel = "gemini-2.5-flash"
 	maxTokens   = 8192
-	outputDir   = "generated"
 )
 
 type GeminiPart struct {
@@ -34,14 +30,15 @@ type GeminiContent struct {
 	Parts []GeminiPart `json:"parts"`
 }
 
+type GeminiGenerationConfig struct {
+	MaxOutputTokens  int    `json:"maxOutputTokens,omitempty"`
+	ResponseMimeType string `json:"responseMimeType,omitempty"`
+}
+
 type GeminiRequest struct {
 	SystemInstruction *GeminiContent         `json:"system_instruction,omitempty"`
 	Contents          []GeminiContent        `json:"contents"`
 	GenerationConfig  GeminiGenerationConfig `json:"generationConfig"`
-}
-
-type GeminiGenerationConfig struct {
-	MaxOutputTokens int `json:"maxOutputTokens"`
 }
 
 type GeminiResponse struct {
@@ -54,101 +51,50 @@ type GeminiResponse struct {
 	} `json:"error,omitempty"`
 }
 
-// ─── DOCX text extractor ────────────────────────────────────────────────────
+// ─── Planning and Generation Types ──────────────────────────────────────────
 
-// extractDocxText opens a .docx file and extracts human-readable text from
-// word/document.xml using a lightweight XML tag stripper.
-func extractDocxText(path string) (string, error) {
-	r, err := zip.OpenReader(path)
-	if err != nil {
-		return "", fmt.Errorf("open zip: %w", err)
-	}
-	defer r.Close()
-
-	var docFile *zip.File
-	for _, f := range r.File {
-		if f.Name == "word/document.xml" {
-			docFile = f
-			break
-		}
-	}
-	if docFile == nil {
-		return "", fmt.Errorf("word/document.xml not found in docx archive")
-	}
-
-	rc, err := docFile.Open()
-	if err != nil {
-		return "", fmt.Errorf("open document.xml: %w", err)
-	}
-	defer rc.Close()
-
-	raw, err := io.ReadAll(rc)
-	if err != nil {
-		return "", fmt.Errorf("read document.xml: %w", err)
-	}
-
-	return parseDocXML(raw), nil
+type PlannedFile struct {
+	Filename     string `json:"filename"`
+	Description  string `json:"description"`
+	Instructions string `json:"instructions"`
 }
 
-// parseDocXML strips XML markup and reconstructs paragraph-separated plain text.
-// It respects <w:p> paragraph boundaries and <w:t> text runs.
-func parseDocXML(xmlData []byte) string {
-	var sb strings.Builder
+const planSystemPrompt = `You are an expert software architect and systems engineer.
+Given a Business Requirements Document (BRD) for an application request, analyze it and plan the project structure.
+Determine all the source code files, configurations, schemas, and documentation files required to build a fully working, production-ready application.
+Your output must be a valid JSON array of file objects. Do not include markdown code block formatting or any text other than the raw JSON.
 
-	// We do a simple state-machine parse to avoid pulling in a full XML library.
-	// State: 0=outside tag, 1=inside tag
-	inTag := false
-	var tagBuf strings.Builder
-	var textBuf strings.Builder
-	newPara := false
+Each file object must contain:
+1. "filename": The relative path and name of the file (e.g., "db/connection.go", "handlers/user.go", "main.go", "go.mod").
+2. "description": A short explanation of what this file does.
+3. "instructions": Extremely detailed technical instructions on what implementation details, structs, functions, routing, error handling, or variables are required in this file. Be very specific to ensure the code generator can write complete, production-quality code.
 
-	for _, b := range xmlData {
-		ch := rune(b)
-		switch {
-		case ch == '<':
-			inTag = true
-			tagBuf.Reset()
-		case ch == '>':
-			inTag = false
-			tag := tagBuf.String()
-			// Paragraph boundary
-			if tag == "w:p" || tag == "/w:p" || strings.HasPrefix(tag, "w:p ") {
-				line := strings.TrimRightFunc(textBuf.String(), unicode.IsSpace)
-				if line != "" {
-					if newPara {
-						sb.WriteString("\n\n")
-					}
-					sb.WriteString(line)
-					newPara = true
-				} else if tag == "/w:p" {
-					// empty paragraph → blank line
-					if newPara {
-						sb.WriteString("\n")
-					}
-				}
-				textBuf.Reset()
-			}
-			// Tab run
-			if tag == "w:tab" {
-				textBuf.WriteString("\t")
-			}
-		case inTag:
-			tagBuf.WriteRune(ch)
-		default:
-			textBuf.WriteRune(ch)
-		}
+Example output format:
+[
+  {
+    "filename": "main.go",
+    "description": "App entry point",
+    "instructions": "Set up HTTP server on port 8080. Import and register endpoints from the handlers package. Implement graceful shutdown on SIGINT/SIGTERM."
+  }
+]
+`
+
+const generateSystemPrompt = `You are a senior developer.
+Given a Business Requirements Document (BRD) and specific instructions for a target file, you generate the COMPLETE, production-ready source code/content for that file.
+You output ONLY the code content — no explanations outside comments.
+Do not output markdown code fences (like triple backtick go ... triple backtick). Start the output directly.
+Ensure proper imports, variables, structures, and business logic according to the BRD. Use robust error handling and proper logging.`
+
+// ─── Gemini API Client ──────────────────────────────────────────────────────
+
+func callGemini(apiKey, model, system, userPrompt string, jsonMode bool) (string, error) {
+	config := GeminiGenerationConfig{
+		MaxOutputTokens: maxTokens,
+	}
+	if jsonMode {
+		config.ResponseMimeType = "application/json"
 	}
 
-	text := sb.String()
-	// Collapse runs of 3+ newlines into 2
-	re := regexp.MustCompile(`\n{3,}`)
-	text = re.ReplaceAllString(text, "\n\n")
-	return strings.TrimSpace(text)
-}
-
-// ─── Gemini API client ──────────────────────────────────────────────────────
-
-func callGemini(apiKey, system, userPrompt string) (string, error) {
 	payload := GeminiRequest{
 		SystemInstruction: &GeminiContent{
 			Role:  "system",
@@ -157,9 +103,7 @@ func callGemini(apiKey, system, userPrompt string) (string, error) {
 		Contents: []GeminiContent{
 			{Role: "user", Parts: []GeminiPart{{Text: userPrompt}}},
 		},
-		GenerationConfig: GeminiGenerationConfig{
-			MaxOutputTokens: maxTokens,
-		},
+		GenerationConfig: config,
 	}
 
 	body, err := json.Marshal(payload)
@@ -167,14 +111,14 @@ func callGemini(apiKey, system, userPrompt string) (string, error) {
 		return "", fmt.Errorf("marshal request: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/%s:generateContent?key=%s", geminiAPI, geminiModel, apiKey)
+	url := fmt.Sprintf("%s/%s:generateContent?key=%s", geminiAPI, model, apiKey)
 	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
 		return "", fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{Timeout: 120 * time.Second}
+	client := &http.Client{Timeout: 180 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("http request: %w", err)
@@ -188,7 +132,7 @@ func callGemini(apiKey, system, userPrompt string) (string, error) {
 
 	var apiResp GeminiResponse
 	if err := json.Unmarshal(respBody, &apiResp); err != nil {
-		return "", fmt.Errorf("unmarshal response: %w", err)
+		return "", fmt.Errorf("unmarshal response: %w, raw response: %s", err, string(respBody))
 	}
 
 	if apiResp.Error != nil {
@@ -206,153 +150,12 @@ func callGemini(apiKey, system, userPrompt string) (string, error) {
 	return result.String(), nil
 }
 
-// ─── Code generation steps ──────────────────────────────────────────────────
-
-const systemPrompt = `You are a senior Go backend engineer specializing in gRPC services and financial systems.
-Given a Business Requirements Document (BRD) for an endpoint migration, you generate production-quality Go code.
-You output ONLY Go source code files — no markdown prose outside code blocks, no explanations outside comments.
-Each file should begin with a package declaration and comprehensive doc comments describing its purpose.
-Use idiomatic Go: proper error wrapping, context propagation, structured logging, and testable design.`
-
-type GeneratedFile struct {
-	Filename    string
-	Description string
-	Prompt      string
-}
-
-func generationSteps(brdText string) []GeneratedFile {
-	brdSnippet := brdText
-	if len(brdSnippet) > 6000 {
-		brdSnippet = brdSnippet[:6000] + "\n\n[... BRD truncated for context ...]"
-	}
-
-	return []GeneratedFile{
-		{
-			Filename:    "transaction.proto",
-			Description: "Protobuf schema",
-			Prompt: fmt.Sprintf(`Based on the following BRD, generate the complete Protocol Buffers 3 .proto file for the TransactionService.
-Include all message definitions (TransactionRequest, TransactionResponse, GetTransactionRequest, StreamStatusRequest, StatusUpdate),
-the TxStatus enum, the TransactionService service with all three RPCs (ProcessTransaction, GetTransaction, StreamStatus),
-and proper import for google/protobuf/timestamp.proto.
-Add field comments describing each field's purpose and constraints from the BRD.
-
-BRD:
-%s`, brdSnippet),
-		},
-		{
-			Filename:    "server.go",
-			Description: "gRPC server implementation",
-			Prompt: fmt.Sprintf(`Based on the following BRD, generate a complete Go file implementing the gRPC TransactionService server.
-Requirements from BRD:
-- Package: transaction/v2
-- Implement ProcessTransaction (unary): validate input, check idempotency cache, process, return TransactionResponse
-- Implement GetTransaction (unary): look up transaction by ID, return NOT_FOUND if missing
-- Implement StreamStatus (server-stream): stream status updates for a transaction_id
-- Use proper gRPC status codes as defined in the BRD error mapping table
-- Include idempotency check using an in-memory sync.Map cache (production would use Redis)
-- Propagate context deadlines
-- Return INVALID_ARGUMENT for: empty transaction_id, zero/negative amount, invalid currency code (not 3 chars), empty account IDs
-- Return ALREADY_EXISTS for duplicate transaction_id with different payload
-- Structured logging using log/slog
-- All public types and functions must have doc comments
-
-BRD:
-%s`, brdSnippet),
-		},
-		{
-			Filename:    "interceptors.go",
-			Description: "gRPC interceptors (auth, logging, rate limiting)",
-			Prompt: fmt.Sprintf(`Based on the following BRD, generate a complete Go file with gRPC interceptors.
-Requirements from BRD:
-- Package: transaction/v2
-- UnaryAuthInterceptor: validates a Bearer JWT token from metadata key "authorization".
-  Extract and validate the token format (for this implementation, check it starts with "Bearer " and has 3 dot-separated parts).
-  Return UNAUTHENTICATED if missing or malformed.
-- UnaryLoggingInterceptor: logs method name, duration, status code, and transaction_id (extracted from request if available via reflection).
-  MUST NOT log full payload per BRD security requirement 5.2.
-- UnaryRateLimitInterceptor: implements a simple token-bucket per authenticated client (client_id from JWT subject claim).
-  Allow 1000 RPM. Return RESOURCE_EXHAUSTED when exceeded.
-- UnaryRecoveryInterceptor: catches panics and returns INTERNAL status.
-- ChainUnaryInterceptors: chains them in the correct order: Recovery → Auth → RateLimit → Logging.
-- Use log/slog for structured logging.
-
-BRD:
-%s`, brdSnippet),
-		},
-		{
-			Filename:    "client.go",
-			Description: "Go gRPC client SDK v2",
-			Prompt: fmt.Sprintf(`Based on the following BRD, generate a complete Go client SDK file for the TransactionService v2 gRPC endpoint.
-Requirements:
-- Package: txnclient
-- TransactionClient struct with a grpc.ClientConn and the generated pb client
-- NewTransactionClient(addr string, opts ...grpc.DialOption) (*TransactionClient, error): connects with mTLS if credentials provided
-- ProcessTransaction(ctx context.Context, req *pb.TransactionRequest) (*pb.TransactionResponse, error)
-- GetTransaction(ctx context.Context, transactionID string) (*pb.TransactionResponse, error)
-- StreamStatus(ctx context.Context, transactionID string, handler func(*pb.StatusUpdate)) error: reads from stream and calls handler for each update
-- WithMTLS(certFile, keyFile, caFile string) grpc.DialOption helper
-- Close() error
-- All methods must propagate context and return wrapped errors with transaction_id included
-- Add retry logic for UNAVAILABLE status (max 3 retries, exponential backoff starting 100ms)
-
-BRD:
-%s`, brdSnippet),
-		},
-		{
-			Filename:    "main.go",
-			Description: "Server entrypoint with mTLS and health check",
-			Prompt: fmt.Sprintf(`Based on the following BRD, generate a complete Go main.go file that starts the TransactionService gRPC server.
-Requirements from BRD:
-- Package: main
-- Parse config from environment variables: GRPC_PORT (default 50051), TLS_CERT_FILE, TLS_KEY_FILE, TLS_CA_FILE
-- If TLS vars are set, configure mTLS (mutual TLS) using tls.RequireAndVerifyClientCert
-- Register TransactionService on the gRPC server with the full interceptor chain
-- Register grpc health check service (google.golang.org/grpc/health) for load balancer probes  
-- Register reflection service for grpcurl debugging (only in non-production; check ENV=production)
-- Prometheus metrics server on :9090 /metrics endpoint (use promhttp.Handler)
-- Graceful shutdown: listen for SIGTERM/SIGINT, call GracefulStop() with a 30-second timeout
-- Structured startup/shutdown logs with slog
-
-BRD:
-%s`, brdSnippet),
-		},
-		{
-			Filename:    "server_test.go",
-			Description: "Unit tests for the server",
-			Prompt: fmt.Sprintf(`Based on the following BRD acceptance criteria, generate a complete Go test file for the TransactionService server.
-Test all acceptance criteria from section 7 of the BRD:
-- AC-01: TestProcessTransaction_ValidPayload — process a valid transaction, assert SUCCESS status
-- AC-02: TestGetTransaction_ExistingID — get an existing transaction, assert correct fields returned
-- AC-05: TestProcessTransaction_InvalidPayload — send invalid payloads and assert INVALID_ARGUMENT  
-- AC-06: TestProcessTransaction_Idempotent — send same transaction_id twice, assert second returns same cached response
-- TestGetTransaction_NotFound — assert NOT_FOUND for unknown ID
-- TestProcessTransaction_EmptyCurrency — assert INVALID_ARGUMENT for empty currency_code
-- TestProcessTransaction_NegativeAmount — assert INVALID_ARGUMENT for amount <= 0
-Use google.golang.org/grpc/status and google.golang.org/grpc/codes for assertions.
-Use bufconn (google.golang.org/grpc/test/bufconn) for in-process testing — no actual network needed.
-Table-driven tests where appropriate.
-Each test must have a clear description comment.
-
-BRD:
-%s`, brdSnippet),
-		},
-	}
-}
-
-// ─── File writer ─────────────────────────────────────────────────────────────
-
-func writeFile(dir, filename, content string) error {
-	// Strip leading/trailing markdown fences if Claude adds them
-	content = stripMarkdownFences(content)
-
-	path := filepath.Join(dir, filename)
-	return os.WriteFile(path, []byte(content), 0o644)
-}
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 func stripMarkdownFences(s string) string {
 	s = strings.TrimSpace(s)
 	lines := strings.Split(s, "\n")
-	// Remove opening fence (```go, ```proto, ```)
+	// Remove opening fence (```go, ```proto, ```, etc)
 	if len(lines) > 0 {
 		first := strings.TrimSpace(lines[0])
 		if strings.HasPrefix(first, "```") {
@@ -369,8 +172,6 @@ func stripMarkdownFences(s string) string {
 	return strings.Join(lines, "\n")
 }
 
-// ─── Banner helpers ─────────────────────────────────────────────────────────
-
 func banner(msg string) {
 	line := strings.Repeat("─", 60)
 	fmt.Printf("\n%s\n  %s\n%s\n", line, msg, line)
@@ -385,104 +186,128 @@ func ok() { fmt.Println("✓") }
 // ─── Main ────────────────────────────────────────────────────────────────────
 
 func main() {
-	banner("BRD OCR → Go Code Generator")
+	banner("Agent BRD → Code Generator (Pure Go)")
 
-	// 1. Resolve input file
-	docxPath := "BRD_Endpoint_Migration.docx"
-	if len(os.Args) > 1 {
-		docxPath = os.Args[1]
-	}
+	// 1. Define command line flags
+	fileFlag := flag.String("file", "BRD_Endpoint_Migration.docx", "Path to the input BRD document (.docx, .doc, or .pdf)")
+	outputFlag := flag.String("output", "generated", "Directory to write generated source code")
+	modelFlag := flag.String("model", "gemini-2.5-flash", "Gemini Model name to use")
+	apiKeyFlag := flag.String("api-key", "", "Gemini API Key (overrides GEMINI_API_KEY environment variable)")
+	flag.Parse()
 
-	apiKey := os.Getenv("GEMINI_API_KEY")
+	// 2. Resolve API key
+	apiKey := *apiKeyFlag
 	if apiKey == "" {
-		log.Fatal("GEMINI_API_KEY environment variable is not set")
+		apiKey = os.Getenv("GEMINI_API_KEY")
+	}
+	if apiKey == "" {
+		log.Fatal("Error: Gemini API Key is not set. Please set the GEMINI_API_KEY environment variable or use the -api-key flag.")
 	}
 
-	// 2. Extract text from DOCX
-	banner("Step 1 — OCR: Extracting BRD text from DOCX")
-	step(1, 1, fmt.Sprintf("Reading %s", filepath.Base(docxPath)))
-	brdText, err := extractDocxText(docxPath)
+	// 3. Extract text from Document using our Go native library
+	banner("Step 1 — Document Extraction (Native Go)")
+	fmt.Printf("  Reading %s...\n", filepath.Base(*fileFlag))
+	
+	brdText, err := ExtractText(*fileFlag)
 	if err != nil {
-		log.Fatalf("Failed to extract DOCX text: %v", err)
+		log.Fatalf("Extraction failed: %v", err)
 	}
-	ok()
-
+	
 	wordCount := len(strings.Fields(brdText))
-	fmt.Printf("  Extracted %d words, %d characters\n", wordCount, len(brdText))
+	fmt.Printf("  Successfully extracted %d words, %d characters.\n", wordCount, len(brdText))
 
-	// 3. Show a brief preview
-	fmt.Println("\n  BRD Preview (first 300 chars):")
+	// Display a short preview
+	fmt.Println("\n  BRD Content Preview (first 300 characters):")
 	preview := brdText
 	if len(preview) > 300 {
 		preview = preview[:300] + "..."
 	}
 	for _, line := range strings.Split(preview, "\n") {
-		fmt.Printf("    %s\n", line)
+		if strings.TrimSpace(line) != "" {
+			fmt.Printf("    %s\n", line)
+		}
 	}
 
-	// 4. Prepare output directory
-	if err := os.MkdirAll(outputDir, 0o755); err != nil {
-		log.Fatalf("Create output dir: %v", err)
+	// 4. Stage 1: Planning
+	banner("Step 2 — Dynamic Project Planning (Gemini)")
+	fmt.Println("  Analyzing BRD requirements to identify required files...")
+	
+	planPrompt := fmt.Sprintf("Here is the Business Requirements Document (BRD):\n\n%s\n\nPlease analyze it and output a plan of files to generate in JSON format.", brdText)
+	planJSON, err := callGemini(apiKey, *modelFlag, planSystemPrompt, planPrompt, true)
+	if err != nil {
+		log.Fatalf("Planning stage failed: %v", err)
 	}
 
-	// 5. Generate code files
-	banner("Step 2 — AI Code Generation via Gemini API")
-	steps := generationSteps(brdText)
+	var plan []PlannedFile
+	if err := json.Unmarshal([]byte(planJSON), &plan); err != nil {
+		log.Fatalf("Failed to parse project plan JSON: %v. Raw response was: %s", err, planJSON)
+	}
 
-	for i, gs := range steps {
-		step(i+1, len(steps), fmt.Sprintf("Generating %-42s (%s)", gs.Filename, gs.Description))
+	fmt.Printf("  Identified %d files to generate:\n", len(plan))
+	for _, f := range plan {
+		fmt.Printf("    • %s (%s)\n", f.Filename, f.Description)
+	}
 
-		code, err := callGemini(apiKey, systemPrompt, gs.Prompt)
+	// 5. Create output directory
+	if err := os.MkdirAll(*outputFlag, 0755); err != nil {
+		log.Fatalf("Failed to create output directory: %v", err)
+	}
+
+	// 6. Stage 2: Code Generation
+	banner("Step 3 — AI Code Generation")
+	
+	for i, f := range plan {
+		step(i+1, len(plan), fmt.Sprintf("Generating %s", f.Filename))
+		
+		genPrompt := fmt.Sprintf("BRD:\n%s\n\nTarget File: %s\nDescription: %s\nInstructions:\n%s\n\nGenerate the complete code for this file.", brdText, f.Filename, f.Description, f.Instructions)
+		code, err := callGemini(apiKey, *modelFlag, generateSystemPrompt, genPrompt, false)
 		if err != nil {
-			fmt.Printf("✗\n  ERROR: %v\n", err)
+			fmt.Printf("✗\n  Error generating %s: %v\n", f.Filename, err)
 			continue
 		}
 
-		if err := writeFile(outputDir, gs.Filename, code); err != nil {
-			fmt.Printf("✗\n  ERROR writing file: %v\n", err)
+		cleanCode := stripMarkdownFences(code)
+		
+		// Write to output path (creating subdirs if necessary)
+		outPath := filepath.Join(*outputFlag, f.Filename)
+		if err := os.MkdirAll(filepath.Dir(outPath), 0755); err != nil {
+			fmt.Printf("✗\n  Error creating directory for %s: %v\n", f.Filename, err)
+			continue
+		}
+
+		if err := os.WriteFile(outPath, []byte(cleanCode), 0644); err != nil {
+			fmt.Printf("✗\n  Error writing %s: %v\n", f.Filename, err)
 			continue
 		}
 		ok()
 
-		// Small courtesy delay between API calls
-		if i < len(steps)-1 {
-			time.Sleep(500 * time.Millisecond)
-		}
+		// Short pause to avoid rate limiting
+		time.Sleep(500 * time.Millisecond)
 	}
 
-	// 6. Write a summary README
-	banner("Step 3 — Writing README")
+	// 7. Stage 3: Generate project-level README.md
+	banner("Step 4 — Creating Project Documentation")
 	step(1, 1, "Generating README.md")
-	readme := buildReadme(docxPath, steps)
-	if err := os.WriteFile(filepath.Join(outputDir, "README.md"), []byte(readme), 0o644); err != nil {
-		fmt.Printf("✗  ERROR: %v\n", err)
+
+	readmePrompt := fmt.Sprintf("Here is the BRD:\n%s\n\nHere are the generated files:\n", brdText)
+	for _, f := range plan {
+		readmePrompt += fmt.Sprintf("- %s: %s\n", f.Filename, f.Description)
+	}
+	readmePrompt += "\nGenerate a comprehensive README.md explaining the architecture, how to run, and how to test the project."
+
+	readmeContent, err := callGemini(apiKey, *modelFlag, generateSystemPrompt, readmePrompt, false)
+	if err != nil {
+		fmt.Printf("✗\n  Error generating README.md: %v\n", err)
 	} else {
-		ok()
+		readmePath := filepath.Join(*outputFlag, "README.md")
+		if err := os.WriteFile(readmePath, []byte(stripMarkdownFences(readmeContent)), 0644); err != nil {
+			fmt.Printf("✗\n  Error writing README.md: %v\n", err)
+		} else {
+			ok()
+		}
 	}
 
-	banner("Done")
-	fmt.Printf("  Generated %d files in ./%s/\n\n", len(steps)+1, outputDir)
-	for _, gs := range steps {
-		fmt.Printf("    • %s/%s\n", outputDir, gs.Filename)
-	}
-	fmt.Printf("    • %s/README.md\n\n", outputDir)
-}
-
-func buildReadme(docxPath string, files []GeneratedFile) string {
-	var sb strings.Builder
-	sb.WriteString("# BRD-Generated Go Code — Transaction Service v2 (gRPC)\n\n")
-	sb.WriteString(fmt.Sprintf("Auto-generated by `brd-ocr-tool` from `%s` on %s.\n\n", filepath.Base(docxPath), time.Now().Format("2006-01-02")))
-	sb.WriteString("## Generated Files\n\n")
-	sb.WriteString("| File | Description |\n|------|-------------|\n")
-	for _, f := range files {
-		sb.WriteString(fmt.Sprintf("| `%s` | %s |\n", f.Filename, f.Description))
-	}
-	sb.WriteString("\n## Quick Start\n\n")
-	sb.WriteString("```bash\n# 1. Generate protobuf Go bindings (requires protoc + protoc-gen-go-grpc)\nprotoc --go_out=. --go-grpc_out=. transaction.proto\n\n")
-	sb.WriteString("# 2. Get dependencies\ngo mod tidy\n\n")
-	sb.WriteString("# 3. Run tests\ngo test ./...\n\n")
-	sb.WriteString("# 4. Start server\nGRPC_PORT=50051 go run main.go\n```\n\n")
-	sb.WriteString("## Architecture\n\n")
-	sb.WriteString("```\n Client → [mTLS] → gRPC Server :50051\n                       │\n                  Interceptor Chain\n                  ┌─── Recovery\n                  ├─── Auth (JWT)\n                  ├─── Rate Limit (token bucket)\n                  └─── Logging (structured)\n                       │\n                  TransactionService\n                  ├── ProcessTransaction  (Unary)\n                  ├── GetTransaction      (Unary)\n                  └── StreamStatus        (Server Stream)\n```\n")
-	return sb.String()
+	banner("Code Generation Complete")
+	fmt.Printf("  All files written to: %s/\n", *outputFlag)
+	fmt.Println("  Ready to test and deploy.")
 }
