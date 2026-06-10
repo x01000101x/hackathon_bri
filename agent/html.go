@@ -39,9 +39,18 @@ func resolveVersion(filePath string, customVersion string) (string, error) {
 		return "v1.0.0", nil
 	}
 
-	major, _ := strconv.Atoi(parts[0])
-	minor, _ := strconv.Atoi(parts[1])
-	patch, _ := strconv.Atoi(parts[2])
+	major, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return "v1.0.0", nil
+	}
+	minor, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return "v1.0.0", nil
+	}
+	patch, err := strconv.Atoi(parts[2])
+	if err != nil {
+		return "v1.0.0", nil
+	}
 
 	// Auto-increment the patch version
 	patch++

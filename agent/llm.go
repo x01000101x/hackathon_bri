@@ -3,15 +3,42 @@ package agent
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/google/generative-ai-go/genai"
 	"google.golang.org/api/option"
 )
 
+// ReviewClient manages a reusable session with the Google Gemini API
+type ReviewClient struct {
+	client    *genai.Client
+	modelName string
+}
+
+// NewReviewClient instantiates a single Gemini client session
+func NewReviewClient(ctx context.Context, apiKey, modelName string) (*ReviewClient, error) {
+	client, err := genai.NewClient(ctx, option.WithAPIKey(apiKey))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Gemini client: %v", err)
+	}
+
+	if modelName == "" {
+		modelName = "gemini-1.5-flash"
+	}
+
+	return &ReviewClient{
+		client:    client,
+		modelName: modelName,
+	}, nil
+}
+
+// Close terminates the underlying client connections
+func (r *ReviewClient) Close() error {
+	return r.client.Close()
+}
+
 // GenerateCodeReview sends the Go diff to Gemini and receives a code quality audit in Markdown
-func GenerateCodeReview(goDiff, version string) (string, error) {
+func (r *ReviewClient) GenerateCodeReview(ctx context.Context, goDiff, version string) (string, error) {
 	prompt := fmt.Sprintf(`You are an expert Go developer and Senior Code Auditor. 
 Analyze the following git diff representing changes introduced in version %s of our Go application.
 
@@ -28,11 +55,11 @@ Here is the Git Diff:
 """
 `, version, goDiff)
 
-	return callGeminiAPI(prompt)
+	return r.callGeminiAPI(ctx, prompt)
 }
 
 // GenerateQueryReview sends the Go & SQL diff to Gemini and receives a database and query audit in Markdown
-func GenerateQueryReview(goDiff, sqlDiff, version string) (string, error) {
+func (r *ReviewClient) GenerateQueryReview(ctx context.Context, goDiff, sqlDiff, version string) (string, error) {
 	prompt := fmt.Sprintf(`You are an expert Database Administrator, GORM specialist, and SQL Performance Tuning Engineer.
 Analyze the following git diffs (including Go file modifications and raw SQL migrations) representing database-related changes introduced in version %s.
 
@@ -52,30 +79,12 @@ Here are the Git Diffs:
 %s
 `, version, goDiff, sqlDiff)
 
-	return callGeminiAPI(prompt)
+	return r.callGeminiAPI(ctx, prompt)
 }
 
 // callGeminiAPI interacts with the official Google Generative AI Go SDK
-func callGeminiAPI(prompt string) (string, error) {
-	ctx := context.Background()
-	apiKey := os.Getenv("GEMINI_API_KEY")
-	if apiKey == "" {
-		return "", fmt.Errorf("GEMINI_API_KEY environment variable is not set")
-	}
-
-	client, err := genai.NewClient(ctx, option.WithAPIKey(apiKey))
-	if err != nil {
-		return "", fmt.Errorf("failed to create Gemini client: %v", err)
-	}
-	defer client.Close()
-
-	// Use gemini-1.5-flash as the default high-speed model
-	modelName := "gemini-1.5-flash"
-	if customModel := os.Getenv("GEMINI_MODEL"); customModel != "" {
-		modelName = customModel
-	}
-
-	model := client.GenerativeModel(modelName)
+func (r *ReviewClient) callGeminiAPI(ctx context.Context, prompt string) (string, error) {
+	model := r.client.GenerativeModel(r.modelName)
 	
 	// Set reasonable creativity limits for analytical work
 	temp := float32(0.2)

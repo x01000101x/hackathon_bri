@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -9,24 +10,30 @@ import (
 
 // RunGenerate is the main entry point for document generation
 func RunGenerate(customVersion string) error {
+	// Create context with an overall timeout of 2 minutes for safety
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
 	// 1. Check GEMINI_API_KEY
 	apiKey := os.Getenv("GEMINI_API_KEY")
 	if apiKey == "" {
 		return fmt.Errorf("GEMINI_API_KEY environment variable is not set. Please set it before running")
 	}
 
+	modelName := os.Getenv("GEMINI_MODEL")
+
 	// 2. Identify base branch (master or main)
-	baseBranch := getBaseBranch()
+	baseBranch := getBaseBranch(ctx)
 	fmt.Printf("🔍 Detected base branch: %s\n", baseBranch)
 
 	// 3. Get Go code diff
-	goDiff, err := getGitDiff(baseBranch, "*.go")
+	goDiff, err := getGitDiff(ctx, baseBranch, "*.go")
 	if err != nil {
 		return fmt.Errorf("failed to retrieve Go diff: %v", err)
 	}
 
 	// 4. Get SQL diff
-	sqlDiff, err := getGitDiff(baseBranch, "*.sql")
+	sqlDiff, err := getGitDiff(ctx, baseBranch, "*.sql")
 	if err != nil {
 		return fmt.Errorf("failed to retrieve SQL diff: %v", err)
 	}
@@ -49,21 +56,29 @@ func RunGenerate(customVersion string) error {
 	}
 	fmt.Printf("📦 Documentation version: %s\n", version)
 
-	// 6. Call Gemini LLM to generate reviews
+	// 6. Initialize Reusable Review Client
+	fmt.Println("🔌 Connecting to Google Generative AI Service...")
+	client, err := NewReviewClient(ctx, apiKey, modelName)
+	if err != nil {
+		return fmt.Errorf("failed to initialize review client: %v", err)
+	}
+	defer client.Close()
+
+	// 7. Call Gemini LLM to generate reviews
 	fmt.Println("🤖 Calling Gemini API to review Code changes...")
-	codeReviewContent, err := GenerateCodeReview(goDiff, version)
+	codeReviewContent, err := client.GenerateCodeReview(ctx, goDiff, version)
 	if err != nil {
 		return fmt.Errorf("failed to generate code review: %v", err)
 	}
 
 	fmt.Println("🤖 Calling Gemini API to review Database & Query changes...")
 	// We pass both goDiff and sqlDiff to query review because GORM queries and model definitions reside in .go files
-	queryReviewContent, err := GenerateQueryReview(goDiff, sqlDiff, version)
+	queryReviewContent, err := client.GenerateQueryReview(ctx, goDiff, sqlDiff, version)
 	if err != nil {
 		return fmt.Errorf("failed to generate query review: %v", err)
 	}
 
-	// 7. Update HTML files
+	// 8. Update HTML files
 	now := time.Now().Format("2006-01-02 15:04:05")
 	
 	fmt.Println("✍️  Writing docs/code_review.html...")
@@ -82,41 +97,43 @@ func RunGenerate(customVersion string) error {
 }
 
 // getBaseBranch detects the main branch of the repository (master, main, or fallbacks)
-func getBaseBranch() string {
-	// Check if master branch exists locally
-	if runGitVerify("master") {
+func getBaseBranch(ctx context.Context) string {
+	// Create context with short timeout for local git executions
+	gitCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	if runGitVerify(gitCtx, "master") {
 		return "master"
 	}
-	// Check if main branch exists locally
-	if runGitVerify("main") {
+	if runGitVerify(gitCtx, "main") {
 		return "main"
 	}
-	// Try remote branches
-	if runGitVerify("origin/master") {
+	if runGitVerify(gitCtx, "origin/master") {
 		return "origin/master"
 	}
-	if runGitVerify("origin/main") {
+	if runGitVerify(gitCtx, "origin/main") {
 		return "origin/main"
 	}
-	// Default fallback to HEAD~1
 	return "HEAD~1"
 }
 
-// runGitVerify runs git rev-parse to check if a branch exists
-func runGitVerify(branch string) bool {
-	cmd := exec.Command("git", "rev-parse", "--verify", branch)
+// runGitVerify runs git rev-parse with context to check if a branch exists
+func runGitVerify(ctx context.Context, branch string) bool {
+	cmd := exec.CommandContext(ctx, "git", "rev-parse", "--verify", branch)
 	err := cmd.Run()
 	return err == nil
 }
 
-// getGitDiff runs git diff master...HEAD for a specific file pattern
-func getGitDiff(baseBranch, filePattern string) (string, error) {
-	// git diff baseBranch...HEAD runs the diff from the common ancestor of baseBranch and HEAD
-	cmd := exec.Command("git", "diff", baseBranch+"...HEAD", "--", filePattern)
+// getGitDiff runs git diff master...HEAD for a specific file pattern with context
+func getGitDiff(ctx context.Context, baseBranch, filePattern string) (string, error) {
+	gitCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(gitCtx, "git", "diff", baseBranch+"...HEAD", "--", filePattern)
 	out, err := cmd.Output()
 	if err != nil {
 		// If git diff fails, let's try git diff baseBranch -- filePattern as a backup
-		cmd = exec.Command("git", "diff", baseBranch, "--", filePattern)
+		cmd = exec.CommandContext(gitCtx, "git", "diff", baseBranch, "--", filePattern)
 		out, err = cmd.Output()
 		if err != nil {
 			return "", err
