@@ -50,7 +50,7 @@ func RunGenerate(customVersion string) error {
 	}
 
 	// 5. Versioning Resolution
-	version, err := resolveVersion("docs/code_review.html", customVersion)
+	version, err := resolveVersion("docs/sop_deployment.html", customVersion)
 	if err != nil {
 		return fmt.Errorf("failed to resolve version: %v", err)
 	}
