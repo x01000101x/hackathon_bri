@@ -151,6 +151,7 @@ func getHTMLTemplate(title, version, dateStr, initialCardHTML string) string {
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
   <style>
     :root {
+      /* Light mode variables (default) */
       --bg-gradient: linear-gradient(135deg, #ffffff 0%%, #f4f6fc 100%%);
       --bg-main: #ffffff;
       --glass-bg: #ffffff;
@@ -165,6 +166,37 @@ func getHTMLTemplate(title, version, dateStr, initialCardHTML string) string {
       --success-green: #10b981;
       --card-shadow: 0 4px 20px rgba(8, 87, 195, 0.05);
       --card-shadow-hover: 0 10px 30px rgba(8, 87, 195, 0.1);
+      --code-bg: rgba(8, 87, 195, 0.05);
+      --code-color: #b91c1c;
+      --table-header-bg: var(--primary-color);
+      --table-header-text: #ffffff;
+      --table-row-even: rgba(48, 127, 226, 0.02);
+      --table-row-hover: rgba(48, 127, 226, 0.05);
+      --card-header-bg: rgba(8, 87, 195, 0.02);
+    }
+
+    body.dark-mode {
+      /* Dark mode variables */
+      --bg-gradient: linear-gradient(135deg, #070913 0%%, #030408 100%%);
+      --bg-main: #0a0e1a;
+      --glass-bg: rgba(255, 255, 255, 0.02);
+      --glass-border: rgba(48, 127, 226, 0.15);
+      --glass-border-hover: rgba(113, 197, 232, 0.3);
+      --primary-color: #307FE2;
+      --secondary-color: #71C5E8;
+      --accent-color: #0857C3;
+      --accent-glow: radial-gradient(circle at 50%% -20%%, rgba(48, 127, 226, 0.15) 0%%, transparent 70%%);
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      --card-shadow-hover: 0 10px 30px rgba(48, 127, 226, 0.15);
+      --code-bg: rgba(113, 197, 232, 0.08);
+      --code-color: #71C5E8;
+      --table-header-bg: #0857C3;
+      --table-header-text: #ffffff;
+      --table-row-even: rgba(255, 255, 255, 0.02);
+      --table-row-hover: rgba(255, 255, 255, 0.04);
+      --card-header-bg: rgba(255, 255, 255, 0.01);
     }
 
     * {
@@ -182,6 +214,7 @@ func getHTMLTemplate(title, version, dateStr, initialCardHTML string) string {
       padding-bottom: 50px;
       overflow-x: hidden;
       position: relative;
+      transition: background 0.3s ease, color 0.3s ease;
     }
 
     /* Glow backdrop element */
@@ -203,6 +236,36 @@ func getHTMLTemplate(title, version, dateStr, initialCardHTML string) string {
       padding: 40px 20px;
       position: relative;
       z-index: 1;
+    }
+
+    /* Theme Toggle Button */
+    .theme-switch-wrapper {
+      position: absolute;
+      top: 25px;
+      right: 25px;
+      z-index: 10;
+    }
+
+    .theme-toggle-btn {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      color: var(--primary-color);
+      width: 42px;
+      height: 42px;
+      border-radius: 50%%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      box-shadow: var(--card-shadow);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .theme-toggle-btn:hover {
+      border-color: var(--glass-border-hover);
+      transform: scale(1.08);
+      box-shadow: var(--card-shadow-hover);
     }
 
     /* Header Styling */
@@ -230,7 +293,7 @@ func getHTMLTemplate(title, version, dateStr, initialCardHTML string) string {
     h1 {
       font-size: 2.4rem;
       font-weight: 700;
-      background: linear-gradient(135deg, #0857C3 0%%, #307FE2 100%%);
+      background: linear-gradient(135deg, var(--primary-color) 0%%, var(--secondary-color) 100%%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       letter-spacing: -0.5px;
@@ -315,7 +378,7 @@ func getHTMLTemplate(title, version, dateStr, initialCardHTML string) string {
       justify-content: space-between;
       align-items: center;
       border-bottom: 1px solid var(--glass-border);
-      background: rgba(8, 87, 195, 0.02);
+      background: var(--card-header-bg);
       cursor: pointer;
     }
 
@@ -332,10 +395,7 @@ func getHTMLTemplate(title, version, dateStr, initialCardHTML string) string {
     }
 
     .toggle-btn {
-      background: transparent;
-      border: none;
       color: var(--text-muted);
-      cursor: pointer;
       font-size: 1.1rem;
       width: 32px;
       height: 32px;
@@ -343,7 +403,7 @@ func getHTMLTemplate(title, version, dateStr, initialCardHTML string) string {
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: background-color 0.2s;
+      transition: background-color 0.2s, color 0.2s;
     }
 
     .toggle-btn:hover {
@@ -368,7 +428,7 @@ func getHTMLTemplate(title, version, dateStr, initialCardHTML string) string {
     /* Markdown styling inside card */
     .markdown-rendered {
       font-size: 1rem;
-      color: #334155;
+      color: var(--text-main);
     }
 
     .markdown-rendered h1, 
@@ -379,14 +439,14 @@ func getHTMLTemplate(title, version, dateStr, initialCardHTML string) string {
       font-weight: 600;
       margin-top: 24px;
       margin-bottom: 14px;
-      color: #0d1b2a;
+      color: var(--text-main);
       letter-spacing: -0.3px;
     }
 
-    .markdown-rendered h1 { font-size: 1.5rem; border-bottom: 2px solid rgba(8, 87, 195, 0.15); padding-bottom: 6px; color: var(--primary-color); }
-    .markdown-rendered h2 { font-size: 1.35rem; border-bottom: 1px solid rgba(8, 87, 195, 0.1); padding-bottom: 4px; color: var(--secondary-color); }
-    .markdown-rendered h3 { font-size: 1.2rem; color: #1e293b; }
-    .markdown-rendered h4 { font-size: 1.05rem; color: #334155; }
+    .markdown-rendered h1 { font-size: 1.5rem; border-bottom: 2px solid var(--glass-border); padding-bottom: 6px; color: var(--primary-color); }
+    .markdown-rendered h2 { font-size: 1.35rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 4px; color: var(--secondary-color); }
+    .markdown-rendered h3 { font-size: 1.2rem; color: var(--text-main); }
+    .markdown-rendered h4 { font-size: 1.05rem; color: var(--text-muted); }
 
     .markdown-rendered p {
       margin-bottom: 16px;
@@ -415,44 +475,46 @@ func getHTMLTemplate(title, version, dateStr, initialCardHTML string) string {
     }
 
     .markdown-rendered th {
-      background-color: var(--primary-color);
-      color: #ffffff;
+      background-color: var(--table-header-bg);
+      color: var(--table-header-text);
       font-weight: 600;
       text-align: left;
       padding: 12px 16px;
-      border: 1px solid rgba(8, 87, 195, 0.15);
+      border: 1px solid var(--glass-border);
     }
 
     .markdown-rendered td {
       padding: 12px 16px;
-      border: 1px solid rgba(8, 87, 195, 0.08);
-      color: #334155;
-      background-color: #ffffff;
+      border: 1px solid var(--glass-border);
+      color: var(--text-main);
+      background-color: var(--bg-main);
       vertical-align: top;
+      transition: background-color 0.3s;
     }
 
     .markdown-rendered tr:nth-child(even) td {
-      background-color: rgba(48, 127, 226, 0.02);
+      background-color: var(--table-row-even);
     }
 
     .markdown-rendered tr:hover td {
-      background-color: rgba(48, 127, 226, 0.05);
+      background-color: var(--table-row-hover);
     }
 
     .markdown-rendered code {
       font-family: 'JetBrains Mono', monospace;
       font-size: 0.88rem;
-      background: rgba(8, 87, 195, 0.05);
+      background: var(--code-bg);
       padding: 3px 6px;
       border-radius: 4px;
-      color: #b91c1c;
+      color: var(--code-color);
+      transition: background 0.3s, color 0.3s;
     }
 
     .markdown-rendered pre {
       margin-bottom: 20px;
       border-radius: 8px;
       overflow-x: auto;
-      border: 1px solid rgba(8, 87, 195, 0.1) !important;
+      border: 1px solid var(--glass-border) !important;
       background: #0f172a !important;
     }
 
@@ -477,7 +539,7 @@ func getHTMLTemplate(title, version, dateStr, initialCardHTML string) string {
     }
 
     .markdown-rendered strong {
-      color: #0f172a;
+      color: var(--text-main);
     }
 
     /* Footer styling */
@@ -513,7 +575,7 @@ func getHTMLTemplate(title, version, dateStr, initialCardHTML string) string {
       height: 8px;
     }
     ::-webkit-scrollbar-track {
-      background: #f1f5f9;
+      background: var(--bg-main);
     }
     ::-webkit-scrollbar-thumb {
       background: rgba(8, 87, 195, 0.15);
@@ -526,6 +588,12 @@ func getHTMLTemplate(title, version, dateStr, initialCardHTML string) string {
 </head>
 <body>
   <!-- AGENT_VERSION: %s -->
+  <div class="theme-switch-wrapper">
+    <button id="theme-toggle" class="theme-toggle-btn" onclick="toggleTheme()" aria-label="Toggle theme">
+      <i class="fas fa-moon" id="theme-icon"></i>
+    </button>
+  </div>
+
   <div class="container">
     <header>
       <div class="brand-section">
@@ -580,8 +648,39 @@ func getHTMLTemplate(title, version, dateStr, initialCardHTML string) string {
       }
     }
 
+    // Theme switching logic
+    function toggleTheme() {
+      const body = document.body;
+      const themeIcon = document.getElementById('theme-icon');
+      if (body.classList.contains('dark-mode')) {
+        body.classList.remove('dark-mode');
+        localStorage.setItem('theme', 'light');
+        if (themeIcon) {
+          themeIcon.className = 'fas fa-moon';
+        }
+      } else {
+        body.classList.add('dark-mode');
+        localStorage.setItem('theme', 'dark');
+        if (themeIcon) {
+          themeIcon.className = 'fas fa-sun';
+        }
+      }
+    }
+
     // Process all cards and render markdown content on DOM load
     document.addEventListener('DOMContentLoaded', () => {
+      // Apply saved theme or default to dark mode
+      const savedTheme = localStorage.getItem('theme') || 'dark';
+      const body = document.body;
+      const themeIcon = document.getElementById('theme-icon');
+      if (savedTheme === 'dark') {
+        body.classList.add('dark-mode');
+        if (themeIcon) themeIcon.className = 'fas fa-sun';
+      } else {
+        body.classList.remove('dark-mode');
+        if (themeIcon) themeIcon.className = 'fas fa-moon';
+      }
+
       document.querySelectorAll('.card-content').forEach(cardContent => {
         const rawMarkdownTemplate = cardContent.querySelector('.raw-markdown');
         const base64Container = cardContent.querySelector('.raw-markdown-base64');
