@@ -66,7 +66,7 @@ func RunGenerate(customVersion string) error {
 
 	// 7. Call Gemini LLM to generate reviews
 	fmt.Println("🤖 Calling Gemini API to review Code changes...")
-	codeReviewContent, err := client.GenerateCodeReview(ctx, goDiff, version)
+	sopDeploymentContent, err := client.GenerateCodeReview(ctx, goDiff, version)
 	if err != nil {
 		return fmt.Errorf("failed to generate code review: %v", err)
 	}
@@ -81,14 +81,14 @@ func RunGenerate(customVersion string) error {
 	// 8. Update HTML files
 	now := time.Now().Format("2006-01-02 15:04:05")
 	
-	fmt.Println("✍️  Writing docs/code_review.html...")
-	err = UpdateHTMLReport("docs/code_review.html", "Code Quality & Structural Audit", version, now, codeReviewContent)
+	fmt.Println("✍️  Writing docs/sop_deployment.html...")
+	err = UpdateHTMLReport("docs/sop_deployment.html", "SOP Deployment", version, now, sopDeploymentContent)
 	if err != nil {
-		return fmt.Errorf("failed to update code_review.html: %v", err)
+		return fmt.Errorf("failed to update sop_deployment.html: %v", err)
 	}
 
 	fmt.Println("✍️  Writing docs/query_review.html...")
-	err = UpdateHTMLReport("docs/query_review.html", "Database Schema & Query Performance Audit", version, now, queryReviewContent)
+	err = UpdateHTMLReport("docs/query_review.html", "Query Review", version, now, queryReviewContent)
 	if err != nil {
 		return fmt.Errorf("failed to update query_review.html: %v", err)
 	}
