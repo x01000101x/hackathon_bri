@@ -44,27 +44,36 @@ Analyze the following git diff representing changes introduced in version %s of 
 
 Based on the code changes and database queries, generate a comprehensive, deployment-ready Standard Operating Procedure (SOP) Deployment document. You MUST return your response in clean, professional Markdown adhering STRICTLY to the following structure and layout. Do not add any conversational text before or after the markdown.
 
+CRITICAL REQUIREMENT: Customize all names, repository URLs, services, and table details to match the actual project being pushed:
+- Project/Module Name: 'hackaton-bri' (or 'hackathon_bri')
+- Git Repository URL: 'https://github.com/x01000101x/hackathon_bri'
+- Base Programming Language: 'Go'
+- Database: PostgreSQL (or appropriate DB based on GORM model tags/migrations)
+- Microservices/Services modified: 'hackaton-bri' (or specific sub-packages if applicable)
+
+Use the following exact layout, replacing the values in brackets [] with the values computed from the diff:
+
 # SOP Deployment
 
 ## 1. Application
-1. SenyuM Tenaga Pemasar
+1. [Inferred application/service name, e.g. hackaton-bri]
 
 ## 2. Programming Language
 1. Go Language
-2. Typescript
+[Add other languages if detected, e.g., SQL]
 
 ## 3. Framework
-1. Echo
-2. Next Js
+1. GORM (Go Object Relational Mapping)
+[Add other frameworks if detected in imports or code]
 
 ## 4. Database
-1. PostGreSQL
+1. PostgreSQL [or appropriate database type inferred from diff]
 
 ## PTL (Procedure Task List)
-Provide a markdown table listing the deployment activities based on the actual changes in this diff. If there are database/sql changes, list the alter/create/update queries, database names, and table names. If there are backend services modified, list the branch merging and deploy service tasks. Use this layout:
+Provide a markdown table listing the deployment activities based on the actual changes in this diff. List the alter/create/update queries, database names, and table names modified in the diff. List the branch merging and deploy service tasks using our repository details. Use this layout:
 No | Activity | Details / SQL / Links
 ---|---|---
-(List tasks sequentially, e.g., Alter table, Create index, Merge branch, Deploy service. Include Bitbucket/GitHub PR links matching the changes or repository details if inferred, or use placeholder/example links matching the repo name bitbucket.bri.co.id/projects/DGB/repos/... e.g. for umi-ms-product, umi-corner-bff, or umi-corner-microsite if applicable).
+(List tasks sequentially. E.g., Alter table, Create index, Merge branch 'feature/...' to 'main', Deploy service. Include PR link templates matching this repository: 'https://github.com/x01000101x/hackathon_bri/pulls' or similar branch comparison URLs).
 
 ## 3. SOP Backup
 Provide a markdown table showing the backup steps. Use this layout:
@@ -72,11 +81,11 @@ No | Activity | Details
 ---|---|---
 1 | Service | Backup code tersedia dalam bentuk branch release versi sebelumnya yang dapat dilihat history deploymentnya melalui Jenkins atau Helm
 2 | Mobile App | Backup code tersedia dalam bentuk branch release versi sebelumnya
-3 | Backup Database | Details: Backup Database (contoh menggunakan GUI DBeaver): Connect pada database yang ingin di backup. Klik kanan pada setiap db name yang di backup, pilih "Dump Database". Pilih table yang ingin di backup, pilih "Next". Gunakan spesifik DB name untuk nama file backup, pilih output file backup. Pilih "Start" dan mulai proses backup. <br>DB yang perlu di backup: (Specify DB name and table names affected by changes, e.g. ms-product - products)
-4 | Backup file .env existing pada service berikut | (List the affected services, e.g., umi-ms-product, umi-corner-bff, etc.)
+3 | Backup Database | Details: Backup Database (contoh menggunakan GUI DBeaver): Connect pada database yang ingin di backup. Klik kanan pada setiap db name yang di backup, pilih "Dump Database". Pilih table yang ingin di backup, pilih "Next". Gunakan spesifik DB name untuk nama file backup, pilih output file backup. Pilih "Start" dan mulai proses backup. <br>DB yang perlu di backup: [Specify database name and table names affected by changes, e.g. db_hackaton_bri - users]
+4 | Backup file .env existing pada service berikut | [List the affected services, e.g., hackaton-bri]
 
 ## 4. SOP Deployment Program
-For each modified service (e.g. umi-corner-bff, umi-corner-microsite, umi-ms-product, or other microservices detected in the diff), provide the step-by-step Jenkins deployment instructions. Format like this:
+For each modified service (e.g. hackaton-bri), provide the step-by-step Jenkins deployment instructions. Format like this:
 * **Deploy [service-name]**
   1. Buka jenkins pada halaman Jenkins [service-name] dan login menggunakan credential yang telah diberikan
   2. Pilih **Build with Parameter**

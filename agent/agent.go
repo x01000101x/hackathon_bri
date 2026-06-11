@@ -10,8 +10,8 @@ import (
 
 // RunGenerate is the main entry point for document generation
 func RunGenerate(customVersion string) error {
-	// Create context with an overall timeout of 2 minutes for safety
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	// Create context with an overall timeout of 5 minutes for safety
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
 	// 1. Check GEMINI_API_KEY
