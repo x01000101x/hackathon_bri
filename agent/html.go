@@ -151,16 +151,20 @@ func getHTMLTemplate(title, version, dateStr, initialCardHTML string) string {
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
   <style>
     :root {
-      --bg-gradient: linear-gradient(135deg, #0a0b16 0%%, #05060d 100%%);
-      --glass-bg: rgba(255, 255, 255, 0.02);
-      --glass-border: rgba(255, 255, 255, 0.05);
-      --glass-border-hover: rgba(255, 255, 255, 0.1);
-      --primary-color: #818cf8;
-      --secondary-color: #c084fc;
-      --accent-glow: radial-gradient(circle at 50%% -20%%, rgba(99, 102, 241, 0.15) 0%%, transparent 70%%);
-      --text-main: #f3f4f6;
-      --text-muted: #9ca3af;
-      --success-green: #34d399;
+      --bg-gradient: linear-gradient(135deg, #ffffff 0%%, #f4f6fc 100%%);
+      --bg-main: #ffffff;
+      --glass-bg: #ffffff;
+      --glass-border: rgba(8, 87, 195, 0.12);
+      --glass-border-hover: rgba(8, 87, 195, 0.25);
+      --primary-color: #0857C3;
+      --secondary-color: #307FE2;
+      --accent-color: #71C5E8;
+      --accent-glow: radial-gradient(circle at 50%% -20%%, rgba(8, 87, 195, 0.08) 0%%, transparent 70%%);
+      --text-main: #1e293b;
+      --text-muted: #64748b;
+      --success-green: #10b981;
+      --card-shadow: 0 4px 20px rgba(8, 87, 195, 0.05);
+      --card-shadow-hover: 0 10px 30px rgba(8, 87, 195, 0.1);
     }
 
     * {
@@ -226,7 +230,7 @@ func getHTMLTemplate(title, version, dateStr, initialCardHTML string) string {
     h1 {
       font-size: 2.4rem;
       font-weight: 700;
-      background: linear-gradient(135deg, #ffffff 30%%, var(--text-muted) 100%%);
+      background: linear-gradient(135deg, #0857C3 0%%, #307FE2 100%%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       letter-spacing: -0.5px;
@@ -261,15 +265,15 @@ func getHTMLTemplate(title, version, dateStr, initialCardHTML string) string {
     }
 
     .badge-version {
-      background: rgba(129, 140, 248, 0.1);
+      background: rgba(8, 87, 195, 0.08);
       color: var(--primary-color);
-      border: 1px solid rgba(129, 140, 248, 0.2);
+      border: 1px solid rgba(8, 87, 195, 0.15);
     }
 
     .badge-updated {
-      background: rgba(52, 211, 153, 0.1);
+      background: rgba(16, 185, 129, 0.08);
       color: var(--success-green);
-      border: 1px solid rgba(52, 211, 153, 0.2);
+      border: 1px solid rgba(16, 185, 129, 0.15);
     }
 
     .badge-card-version {
@@ -279,19 +283,18 @@ func getHTMLTemplate(title, version, dateStr, initialCardHTML string) string {
       border: none;
     }
 
-    /* Glassmorphism Panel Template */
+    /* Panel Styling */
     .glass-panel {
       background: var(--glass-bg);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
       border: 1px solid var(--glass-border);
       border-radius: 16px;
+      box-shadow: var(--card-shadow);
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     .glass-panel:hover {
       border-color: var(--glass-border-hover);
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      box-shadow: var(--card-shadow-hover);
     }
 
     /* Timeline Container */
@@ -312,7 +315,7 @@ func getHTMLTemplate(title, version, dateStr, initialCardHTML string) string {
       justify-content: space-between;
       align-items: center;
       border-bottom: 1px solid var(--glass-border);
-      background: rgba(255, 255, 255, 0.01);
+      background: rgba(8, 87, 195, 0.02);
       cursor: pointer;
     }
 
@@ -344,8 +347,8 @@ func getHTMLTemplate(title, version, dateStr, initialCardHTML string) string {
     }
 
     .toggle-btn:hover {
-      background-color: rgba(255, 255, 255, 0.05);
-      color: var(--text-main);
+      background-color: rgba(8, 87, 195, 0.05);
+      color: var(--primary-color);
     }
 
     .card-content {
@@ -357,7 +360,7 @@ func getHTMLTemplate(title, version, dateStr, initialCardHTML string) string {
     }
 
     .card-content.active {
-      max-height: 15000px; /* High enough threshold for markdown render */
+      max-height: 25000px; /* High enough threshold for markdown render */
       opacity: 1;
       padding: 24px;
     }
@@ -365,22 +368,25 @@ func getHTMLTemplate(title, version, dateStr, initialCardHTML string) string {
     /* Markdown styling inside card */
     .markdown-rendered {
       font-size: 1rem;
-      color: #e5e7eb;
+      color: #334155;
     }
 
     .markdown-rendered h1, 
     .markdown-rendered h2, 
-    .markdown-rendered h3 {
+    .markdown-rendered h3,
+    .markdown-rendered h4,
+    .markdown-rendered h5 {
       font-weight: 600;
       margin-top: 24px;
       margin-bottom: 14px;
-      color: #ffffff;
+      color: #0d1b2a;
       letter-spacing: -0.3px;
     }
 
-    .markdown-rendered h1 { font-size: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 6px; }
-    .markdown-rendered h2 { font-size: 1.3rem; }
-    .markdown-rendered h3 { font-size: 1.1rem; }
+    .markdown-rendered h1 { font-size: 1.5rem; border-bottom: 2px solid rgba(8, 87, 195, 0.15); padding-bottom: 6px; color: var(--primary-color); }
+    .markdown-rendered h2 { font-size: 1.35rem; border-bottom: 1px solid rgba(8, 87, 195, 0.1); padding-bottom: 4px; color: var(--secondary-color); }
+    .markdown-rendered h3 { font-size: 1.2rem; color: #1e293b; }
+    .markdown-rendered h4 { font-size: 1.05rem; color: #334155; }
 
     .markdown-rendered p {
       margin-bottom: 16px;
@@ -396,25 +402,63 @@ func getHTMLTemplate(title, version, dateStr, initialCardHTML string) string {
       margin-bottom: 6px;
     }
 
+    /* Markdown Tables (High-contrast blue themes) */
+    .markdown-rendered table {
+      width: 100%%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 0.92rem;
+      box-shadow: 0 2px 12px rgba(8, 87, 195, 0.04);
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--glass-border);
+    }
+
+    .markdown-rendered th {
+      background-color: var(--primary-color);
+      color: #ffffff;
+      font-weight: 600;
+      text-align: left;
+      padding: 12px 16px;
+      border: 1px solid rgba(8, 87, 195, 0.15);
+    }
+
+    .markdown-rendered td {
+      padding: 12px 16px;
+      border: 1px solid rgba(8, 87, 195, 0.08);
+      color: #334155;
+      background-color: #ffffff;
+      vertical-align: top;
+    }
+
+    .markdown-rendered tr:nth-child(even) td {
+      background-color: rgba(48, 127, 226, 0.02);
+    }
+
+    .markdown-rendered tr:hover td {
+      background-color: rgba(48, 127, 226, 0.05);
+    }
+
     .markdown-rendered code {
       font-family: 'JetBrains Mono', monospace;
-      font-size: 0.9rem;
-      background: rgba(255, 255, 255, 0.05);
+      font-size: 0.88rem;
+      background: rgba(8, 87, 195, 0.05);
       padding: 3px 6px;
       border-radius: 4px;
-      color: #f472b6;
+      color: #b91c1c;
     }
 
     .markdown-rendered pre {
       margin-bottom: 20px;
       border-radius: 8px;
       overflow-x: auto;
-      border: 1px solid rgba(255, 255, 255, 0.05) !important;
+      border: 1px solid rgba(8, 87, 195, 0.1) !important;
+      background: #0f172a !important;
     }
 
     .markdown-rendered pre code {
       font-family: 'JetBrains Mono', monospace;
-      color: inherit;
+      color: #e2e8f0;
       background: transparent;
       padding: 0;
       border-radius: 0;
@@ -426,14 +470,14 @@ func getHTMLTemplate(title, version, dateStr, initialCardHTML string) string {
       padding-left: 16px;
       margin: 20px 0;
       color: var(--text-muted);
-      background: rgba(129, 140, 248, 0.03);
+      background: rgba(8, 87, 195, 0.03);
       padding-top: 10px;
       padding-bottom: 10px;
       border-radius: 0 8px 8px 0;
     }
 
     .markdown-rendered strong {
-      color: #ffffff;
+      color: #0f172a;
     }
 
     /* Footer styling */
@@ -456,10 +500,10 @@ func getHTMLTemplate(title, version, dateStr, initialCardHTML string) string {
     /* Keyframes */
     @keyframes pulse-glow {
       0%% {
-        filter: drop-shadow(0 0 2px rgba(129, 140, 248, 0.4));
+        filter: drop-shadow(0 0 2px rgba(8, 87, 195, 0.3));
       }
       100%% {
-        filter: drop-shadow(0 0 10px rgba(192, 84, 252, 0.8));
+        filter: drop-shadow(0 0 10px rgba(113, 197, 232, 0.7));
       }
     }
 
@@ -469,14 +513,14 @@ func getHTMLTemplate(title, version, dateStr, initialCardHTML string) string {
       height: 8px;
     }
     ::-webkit-scrollbar-track {
-      background: #05060d;
+      background: #f1f5f9;
     }
     ::-webkit-scrollbar-thumb {
-      background: rgba(255,255,255,0.1);
+      background: rgba(8, 87, 195, 0.15);
       border-radius: 4px;
     }
     ::-webkit-scrollbar-thumb:hover {
-      background: rgba(255,255,255,0.2);
+      background: rgba(8, 87, 195, 0.3);
     }
   </style>
 </head>
