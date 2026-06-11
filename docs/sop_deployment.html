@@ -447,7 +447,7 @@
   </style>
 </head>
 <body>
-  <!-- AGENT_VERSION: v1.0.7 -->
+  <!-- AGENT_VERSION: v1.0.8 -->
   <div class="theme-switch-wrapper">
     <button id="theme-toggle" class="theme-toggle-btn" onclick="toggleTheme()" aria-label="Toggle theme">
       <i class="fas fa-moon" id="theme-icon"></i>
@@ -464,12 +464,29 @@
       
       <div class="metadata-bar">
         <span class="badge badge-version"><i class="fas fa-code-branch"></i> <span id="latest-version-badge">v1.0.7</span></span>
-        <span class="badge badge-updated"><i class="fas fa-sync-alt"></i> Last Sync: <span id="last-updated-date">2026-06-11 15:49:53</span></span>
+        <span class="badge badge-updated"><i class="fas fa-sync-alt"></i> Last Sync: <span id="last-updated-date">2026-06-11 15:56:05</span></span>
       </div>
     </header>
 
     <main class="audits-timeline">
 <!-- AUDITS_INSERT_MARKER -->
+    <!-- AUDIT_CARD_v1.0.8_START -->
+    <div class="audit-card glass-panel" id="audit-v1-0-8">
+      <div class="card-header" onclick="toggleCard('audit-v1-0-8')">
+        <div class="header-left">
+          <span class="badge badge-card-version">v1.0.8</span>
+          <span class="audit-timestamp"><i class="fas fa-clock"></i> 2026-06-11 15:56:05</span>
+        </div>
+        <div class="toggle-btn">
+          <i class="fas fa-chevron-down" id="icon-audit-v1-0-8"></i>
+        </div>
+      </div>
+      <div class="card-content active" id="content-audit-v1-0-8">
+        <div class="markdown-rendered"></div>
+        <div class="raw-markdown-base64" style="display:none">IyBTT1AgRGVwbG95bWVudAoKIyMgMS4gQXBwbGljYXRpb24KMS4gaGFja2F0b24tYnJpCgojIyAyLiBQcm9ncmFtbWluZyBMYW5ndWFnZQoxLiBHbyBMYW5ndWFnZQoyLiBTUUwKCiMjIDMuIEZyYW1ld29yawoxLiBHT1JNIChHbyBPYmplY3QgUmVsYXRpb25hbCBNYXBwaW5nKQoyLiBHb29nbGUgR2VuZXJhdGl2ZSBBSSBHbyBTREsKCiMjIDQuIERhdGFiYXNlCjEuIFBvc3RncmVTUUwKCiMjIFBUTCAoUHJvY2VkdXJlIFRhc2sgTGlzdCkKCk5vIHwgQWN0aXZpdHkgfCBEZXRhaWxzIC8gU1FMIC8gTGlua3MKLS0tfC0tLXwtLS0KMSB8IE1lcmdlIEJyYW5jaCB8IE1lcmdlIGJyYW5jaCBgcmVsZWFzZS92MS4wLjhgIHRvIGBtYXN0ZXJgIHZpYSBQUjogaHR0cHM6Ly9naXRodWIuY29tL3gwMTAwMDEwMXgvaGFja2F0aG9uX2JyaS9wdWxscwoyIHwgQ3JlYXRlIFRhYmxlIGB1c2Vyc2AgfCBFeGVjdXRlIHRoZSBmb2xsb3dpbmcgU1FMIHF1ZXJ5IG9uIGRhdGFiYXNlIGBkYl9oYWNrYXRvbl9icmlgIHRvIGNyZWF0ZSB0aGUgYHVzZXJzYCB0YWJsZTo8YnI+YENSRUFURSBUQUJMRSBJRiBOT1QgRVhJU1RTIHB1YmxpYy51c2VycyAoaWQgU0VSSUFMIFBSSU1BUlkgS0VZLCBlbWFpbCBWQVJDSEFSKDI1NSkgVU5JUVVFIE5PVCBOVUxMLCBwYXNzd29yZCBWQVJDSEFSKDI1NSkgTk9UIE5VTEwsIG5hbWUgVkFSQ0hBUigxMDApLCBpc19hY3RpdmUgQk9PTEVBTiBERUZBVUxUIFRSVUUsIGlzX2VvZCBWQVJDSEFSKDEwKSBERUZBVUxUIE5VTEwsIGVvZF9yZWFzb24gVEVYVCBERUZBVUxUIE5VTEwsIGNyZWF0ZWRfYXQgVElNRVNUQU1QIFdJVEggVElNRSBaT05FIERFRkFVTFQgQ1VSUkVOVF9USU1FU1RBTVAsIHVwZGF0ZWRfYXQgVElNRVNUQU1QIFdJVEggVElNRSBaT05FIERFRkFVTFQgQ1VSUkVOVF9USU1FU1RBTVAsIGRlbGV0ZWRfYXQgVElNRVNUQU1QIFdJVEggVElNRSBaT05FKTtgCjMgfCBDcmVhdGUgSW5kZXggYGlkeF91c2Vyc19kZWxldGVkX2F0YCB8IEV4ZWN1dGUgaW5kZXggY3JlYXRpb24gcXVlcnkgb24gZGF0YWJhc2UgYGRiX2hhY2thdG9uX2JyaWA6PGJyPmBDUkVBVEUgSU5ERVggSUYgTk9UIEVYSVNUUyBpZHhfdXNlcnNfZGVsZXRlZF9hdCBPTiBwdWJsaWMudXNlcnMoZGVsZXRlZF9hdCk7YAo0IHwgRGVwbG95IFNlcnZpY2UgfCBEZXBsb3kgYGhhY2thdG9uLWJyaWAgc2VydmljZSB1c2luZyBKZW5raW5zIHBpcGVsaW5lLgoKIyMgMy4gU09QIEJhY2t1cAoKTm8gfCBBY3Rpdml0eSB8IERldGFpbHMKLS0tfC0tLXwtLS0KMSB8IFNlcnZpY2UgfCBCYWNrdXAgY29kZSB0ZXJzZWRpYSBkYWxhbSBiZW50dWsgYnJhbmNoIHJlbGVhc2UgdmVyc2kgc2ViZWx1bW55YSB5YW5nIGRhcGF0IGRpbGloYXQgaGlzdG9yeSBkZXBsb3ltZW50bnlhIG1lbGFsdWkgSmVua2lucyBhdGF1IEhlbG0KMiB8IE1vYmlsZSBBcHAgfCBCYWNrdXAgY29kZSB0ZXJzZWRpYSBkYWxhbSBiZW50dWsgYnJhbmNoIHJlbGVhc2UgdmVyc2kgc2ViZWx1bW55YQozIHwgQmFja3VwIERhdGFiYXNlIHwgRGV0YWlsczogQmFja3VwIERhdGFiYXNlIChjb250b2ggbWVuZ2d1bmFrYW4gR1VJIERCZWF2ZXIpOiBDb25uZWN0IHBhZGEgZGF0YWJhc2UgeWFuZyBpbmdpbiBkaSBiYWNrdXAuIEtsaWsga2FuYW4gcGFkYSBzZXRpYXAgZGIgbmFtZSB5YW5nIGRpIGJhY2t1cCwgcGlsaWggIkR1bXAgRGF0YWJhc2UiLiBQaWxpaCB0YWJsZSB5YW5nIGluZ2luIGRpIGJhY2t1cCwgcGlsaWggIk5leHQiLiBHdW5ha2FuIHNwZXNpZmlrIERCIG5hbWUgdW50dWsgbmFtYSBmaWxlIGJhY2t1cCwgcGlsaWggb3V0cHV0IGZpbGUgYmFja3VwLiBQaWxpaCAiU3RhcnQiIGRhbiBtdWxhaSBwcm9zZXMgYmFja3VwLiA8YnI+REIgeWFuZyBwZXJsdSBkaSBiYWNrdXA6IGRiX2hhY2thdG9uX2JyaSAtIHVzZXJzCjQgfCBCYWNrdXAgZmlsZSAuZW52IGV4aXN0aW5nIHBhZGEgc2VydmljZSBiZXJpa3V0IHwgaGFja2F0b24tYnJpCgojIyA0LiBTT1AgRGVwbG95bWVudCBQcm9ncmFtCgoqICoqRGVwbG95IGhhY2thdG9uLWJyaSoqCiAgMS4gQnVrYSBqZW5raW5zIHBhZGEgaGFsYW1hbiBKZW5raW5zIGhhY2thdG9uLWJyaSBkYW4gbG9naW4gbWVuZ2d1bmFrYW4gY3JlZGVudGlhbCB5YW5nIHRlbGFoIGRpYmVyaWthbgogIDIuIFBpbGloICoqQnVpbGQgd2l0aCBQYXJhbWV0ZXIqKgogICAgICogQnJhbmNoIDogUGlsaWggYnJhbmNoIG1hc3RlcgogICAgICogRGF0YWNlbnRlciA6IFBpbGloIGRhdGEgY2VudGVyIEdUSQogICAgICogRGVwbG95X1RvIDogUGlsaWggZW52aXJvbm1lbnQgUHJvZHVjdGlvbgogICAgICogQ2x1c3RlciA6IFBpbGloIGN1c3RlciBHVEkgUHJkIE5ldyBDbHVzdGVyCiAgMy4gS2xpayAqKkJ1aWxkKioKICA0LiBUdW5nZ3Ugc2FtcGFpIHByb3NlcyBkZXBsb3ltZW50IHNlbGVzYWkKCiMjIFNPUCBSb2xsYmFjawoKIyMjIDEuIEVrc2VrdXNpIFF1ZXJ5CmBgYHNxbApEUk9QIFRBQkxFIElGIEVYSVNUUyBwdWJsaWMudXNlcnMgQ0FTQ0FERTsKYGBgCgojIyMgMi4gUm9sbGJhY2sgU2VydmljZQoqICoqUk9MTEJBQ0sgaGFja2F0b24tYnJpKioKICAxLiBNYXN1ayBrZSBzZXJ2ZXIgbWFzdGVyIGt1YmVybmV0ZXMgb24gcHJlbWlzZQogIDIuIEtldGlrIGNvbW1hbmQ6ICdoZWxtIGhpc3RvcnkgaGFja2F0b24tYnJpJyB1bnR1ayBtZW5nZXRhaHVpIHJpd2F5YXQgZGVwbG95IGRhbiBtZW5kYXBhdGthbiBub21vciByZXZpc2kKICAzLiBLZXRpazogJ2hlbG0gcm9sbGJhY2sgaGFja2F0b24tYnJpIFtyZXZpc2lvbl0nCgojIyBBbHRlcm5hdGUgQmFja3VwIFBsYW4KCiogKipEZXBsb3kgaGFja2F0b24tYnJpKioKICAxLiBDbG9uZSByZXBvc2l0b3J5IGhhY2thdG9uLWJyaQogIDIuIENoZWNrb3V0IGJyYW5jaCBtYXN0ZXI6IGdpdCBjaGVja291dCBtYXN0ZXIKICAzLiBSZXZlcnQgQ29tbWl0IGlkOiBnaXQgcmV2ZXJ0IC1NIDEgW2luZmVycmVkLW9yLXBsYWNlaG9sZGVyLWNvbW1pdC1pZF0KICA0LiBQdXNoIE9yaWdpbiBNYXN0ZXI6IGdpdCBwdXNoIG9yaWdpbiBtYXN0ZXIKICA1LiBCdWthIGplbmtpbnMgcGFkYSBoYWxhbWFuIEplbmtpbnMgaGFja2F0b24tYnJpIGRhbiBsb2dpbiBtZW5nZ3VuYWthbiBjcmVkZW50aWFsIHlhbmcgdGVsYWggZGliZXJpa2FuCiAgNi4gUGlsaWggKipCdWlsZCB3aXRoIFBhcmFtZXRlcioqCiAgICAgKiBCcmFuY2ggOiBQaWxpaCBicmFuY2ggbWFzdGVyCiAgICAgKiBEYXRhY2VudGVyIDogUGlsaWggZGF0YSBjZW50ZXIgR1RJCiAgICAgKiBEZXBsb3lfVG8gOiBQaWxpaCBlbnZpcm9ubWVudCBQcm9kdWN0aW9uCiAgICAgKiBDbHVzdGVyIDogUGlsaWggY3VzdGVyIEdUSSBQcmQgTmV3IENsdXN0ZXIKICA3LiBLbGlrICoqQnVpbGQqKgogIDguIFR1bmdndSBzYW1wYWkgcHJvc2VzIGRlcGxveW1lbnQgc2VsZXNhaQ==</div>
+      </div>
+    </div>
+    <!-- AUDIT_CARD_v1.0.8_END -->
 <!-- AUDIT_CARD_v1.0.7_START -->
     <div class="audit-card glass-panel" id="audit-v1-0-7">
       <div class="card-header" onclick="toggleCard('audit-v1-0-7')">
