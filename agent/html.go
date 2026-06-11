@@ -124,9 +124,9 @@ func generateAuditCardHTML(version, dateStr, markdownReview string) string {
           <span class="badge badge-card-version">%s</span>
           <span class="audit-timestamp"><i class="fas fa-clock"></i> %s</span>
         </div>
-        <button class="toggle-btn">
+        <div class="toggle-btn">
           <i class="fas fa-chevron-down" id="icon-%s"></i>
-        </button>
+        </div>
       </div>
       <div class="card-content active" id="content-%s">
         <div class="markdown-rendered"></div>
