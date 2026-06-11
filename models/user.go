@@ -13,6 +13,8 @@ type User struct {
 	Password  string         `gorm:"type:varchar(255);not null" json:"-"`
 	Name      string         `gorm:"type:varchar(100)" json:"name"`
 	IsActive  bool           `gorm:"default:true" json:"is_active"`
+	IsEod     string         `gorm:"type:varchar(10);default:null" json:"is_eod"`
+	EodReason string         `gorm:"type:text;default:null" json:"eod_reason"`
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
