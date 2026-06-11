@@ -424,7 +424,7 @@
     </style>
   </head>
   <body>
-    <!-- AGENT_VERSION: v1.0.5 -->
+    <!-- AGENT_VERSION: v1.0.6 -->
     <div class="container">
       <header>
         <div class="brand-section">
@@ -442,13 +442,30 @@
           >
           <span class="badge badge-updated"
             ><i class="fas fa-sync-alt"></i> Last Sync:
-            <span id="last-updated-date">2026-06-11 15:28:35</span></span
+            <span id="last-updated-date">2026-06-11 15:49:03</span></span
           >
         </div>
       </header>
 
       <main class="audits-timeline">
         <!-- AUDITS_INSERT_MARKER -->
+    <!-- AUDIT_CARD_v1.0.6_START -->
+    <div class="audit-card glass-panel" id="audit-v1-0-6">
+      <div class="card-header" onclick="toggleCard('audit-v1-0-6')">
+        <div class="header-left">
+          <span class="badge badge-card-version">v1.0.6</span>
+          <span class="audit-timestamp"><i class="fas fa-clock"></i> 2026-06-11 15:49:03</span>
+        </div>
+        <div class="toggle-btn">
+          <i class="fas fa-chevron-down" id="icon-audit-v1-0-6"></i>
+        </div>
+      </div>
+      <div class="card-content active" id="content-audit-v1-0-6">
+        <div class="markdown-rendered"></div>
+        <div class="raw-markdown-base64" style="display:none">IyBTT1AgRGVwbG95bWVudAoKIyMgMS4gQXBwbGljYXRpb24KMS4gaGFja2F0b24tYnJpCgojIyAyLiBQcm9ncmFtbWluZyBMYW5ndWFnZQoxLiBHbyBMYW5ndWFnZQoyLiBTUUwKCiMjIDMuIEZyYW1ld29yawoxLiBHT1JNIChHbyBPYmplY3QgUmVsYXRpb25hbCBNYXBwaW5nKQoKIyMgNC4gRGF0YWJhc2UKMS4gUG9zdGdyZVNRTAoKIyMgUFRMIChQcm9jZWR1cmUgVGFzayBMaXN0KQoKTm8gfCBBY3Rpdml0eSB8IERldGFpbHMgLyBTUUwgLyBMaW5rcwotLS18LS0tfC0tLQoxIHwgTWVyZ2UgYnJhbmNoICdyZWxlYXNlL3YxLjAuNicgdG8gJ21hc3RlcicgfCBNZXJnZSBwdWxsIHJlcXVlc3QgZm9yIHZlcnNpb24gdjEuMC42LiA8YnI+UFIgTGluazogaHR0cHM6Ly9naXRodWIuY29tL3gwMTAwMDEwMXgvaGFja2F0aG9uX2JyaS9wdWxscwoyIHwgQ3JlYXRlIFRhYmxlIGB1c2Vyc2AgfCBFeGVjdXRlIHRoZSBmb2xsb3dpbmcgRERMIHF1ZXJ5IG9uIFBvc3RncmVTUUwgZGF0YWJhc2UgYGRiX2hhY2thdG9uX2JyaWA6PGJyPjxwcmU+Q1JFQVRFIFRBQkxFIHB1YmxpYy51c2VycyAoPGJyPiAgaWQgQklHU0VSSUFMIFBSSU1BUlkgS0VZLDxicj4gIGVtYWlsIFZBUkNIQVIoMjU1KSBVTklRVUUgTk9UIE5VTEwsPGJyPiAgcGFzc3dvcmQgVkFSQ0hBUigyNTUpIE5PVCBOVUxMLDxicj4gIG5hbWUgVkFSQ0hBUigxMDApLDxicj4gIGlzX2FjdGl2ZSBCT09MRUFOIERFRkFVTFQgVFJVRSw8YnI+ICBpc19lb2QgVkFSQ0hBUigxMCkgREVGQVVMVCBOVUxMLDxicj4gIGVvZF9yZWFzb24gVEVYVCBERUZBVUxUIE5VTEwsPGJyPiAgY3JlYXRlZF9hdCBUSU1FU1RBTVAgV0lUSCBUSU1FIFpPTkUgTk9UIE5VTEwsPGJyPiAgdXBkYXRlZF9hdCBUSU1FU1RBTVAgV0lUSCBUSU1FIFpPTkUgTk9UIE5VTEwsPGJyPiAgZGVsZXRlZF9hdCBUSU1FU1RBTVAgV0lUSCBUSU1FIFpPTkU8YnI+KTs8YnI+Q1JFQVRFIElOREVYIGlkeF91c2Vyc19kZWxldGVkX2F0IE9OIHB1YmxpYy51c2VycyhkZWxldGVkX2F0KTs8L3ByZT4KMyB8IERlcGxveSBTZXJ2aWNlIGBoYWNrYXRvbi1icmlgIHwgRGVwbG95IHRoZSB1cGRhdGVkIEdvIGFwcGxpY2F0aW9uIHVzaW5nIEplbmtpbnMgcGlwZWxpbmUuCgojIyAzLiBTT1AgQmFja3VwCgpObyB8IEFjdGl2aXR5IHwgRGV0YWlscwotLS18LS0tfC0tLQoxIHwgU2VydmljZSB8IEJhY2t1cCBjb2RlIHRlcnNlZGlhIGRhbGFtIGJlbnR1ayBicmFuY2ggcmVsZWFzZSB2ZXJzaSBzZWJlbHVtbnlhIHlhbmcgZGFwYXQgZGlsaWhhdCBoaXN0b3J5IGRlcGxveW1lbnRueWEgbWVsYWx1aSBKZW5raW5zIGF0YXUgSGVsbQoyIHwgTW9iaWxlIEFwcCB8IEJhY2t1cCBjb2RlIHRlcnNlZGlhIGRhbGFtIGJlbnR1ayBicmFuY2ggcmVsZWFzZSB2ZXJzaSBzZWJlbHVtbnlhCjMgfCBCYWNrdXAgRGF0YWJhc2UgfCBEZXRhaWxzOiBCYWNrdXAgRGF0YWJhc2UgKGNvbnRvaCBtZW5nZ3VuYWthbiBHVUkgREJlYXZlcik6IENvbm5lY3QgcGFkYSBkYXRhYmFzZSB5YW5nIGluZ2luIGRpIGJhY2t1cC4gS2xpayBrYW5hbiBwYWRhIHNldGlhcCBkYiBuYW1lIHlhbmcgZGkgYmFja3VwLCBwaWxpaCAiRHVtcCBEYXRhYmFzZSIuIFBpbGloIHRhYmxlIHlhbmcgaW5naW4gZGkgYmFja3VwLCBwaWxpaCAiTmV4dCIuIEd1bmFrYW4gc3Blc2lmaWsgREIgbmFtZSB1bnR1ayBuYW1hIGZpbGUgYmFja3VwLCBwaWxpaCBvdXRwdXQgZmlsZSBiYWNrdXAuIFBpbGloICJTdGFydCIgZGFuIG11bGFpIHByb3NlcyBiYWNrdXAuIDxicj5EQiB5YW5nIHBlcmx1IGRpIGJhY2t1cDogZGJfaGFja2F0b25fYnJpIC0gdXNlcnMKNCB8IEJhY2t1cCBmaWxlIC5lbnYgZXhpc3RpbmcgcGFkYSBzZXJ2aWNlIGJlcmlrdXQgfCBoYWNrYXRvbi1icmkKCiMjIDQuIFNPUCBEZXBsb3ltZW50IFByb2dyYW0KCiogKipEZXBsb3kgaGFja2F0b24tYnJpKioKICAxLiBCdWthIGplbmtpbnMgcGFkYSBoYWxhbWFuIEplbmtpbnMgaGFja2F0b24tYnJpIGFuZCBsb2dpbiBtZW5nZ3VuYWthbiBjcmVkZW50aWFsIHlhbmcgdGVsYWggZGliZXJpa2FuCiAgMi4gUGlsaWggKipCdWlsZCB3aXRoIFBhcmFtZXRlcioqCiAgICAgKiBCcmFuY2ggOiBQaWxpaCBicmFuY2ggbWFzdGVyCiAgICAgKiBEYXRhY2VudGVyIDogUGlsaWggZGF0YSBjZW50ZXIgR1RJCiAgICAgKiBEZXBsb3lfVG8gOiBQaWxpaCBlbnZpcm9ubWVudCBQcm9kdWN0aW9uCiAgICAgKiBDbHVzdGVyIDogUGlsaWggY3VzdGVyIEdUSSBQcmQgTmV3IENsdXN0ZXIKICAzLiBLbGlrICoqQnVpbGQqKgogIDQuIFR1bmdndSBzYW1wYWkgcHJvc2VzIGRlcGxveW1lbnQgc2VsZXNhaQoKIyMgU09QIFJvbGxiYWNrCgojIyMgMS4gRWtzZWt1c2kgUXVlcnkKYGBgc3FsCkRST1AgVEFCTEUgSUYgRVhJU1RTIHB1YmxpYy51c2VycyBDQVNDQURFOwpgYGAKCiMjIyAyLiBSb2xsYmFjayBTZXJ2aWNlCiogKipST0xMQkFDSyBoYWNrYXRvbi1icmkqKgogIDEuIE1hc3VrIGtlIHNlcnZlciBtYXN0ZXIga3ViZXJuZXRlcyBvbiBwcmVtaXNlCiAgMi4gS2V0aWsgY29tbWFuZDogJ2hlbG0gaGlzdG9yeSBoYWNrYXRvbi1icmknIHVudHVrIG1lbmdldGFodWkgcml3YXlhdCBkZXBsb3kgZGFuIG1lbmRhcGF0a2FuIG5vbW9yIHJldmlzaQogIDMuIEtldGlrOiAnaGVsbSByb2xsYmFjayBoYWNrYXRvbi1icmkgW3JldmlzaW9uXScKCiMjIEFsdGVybmF0ZSBCYWNrdXAgUGxhbgoKKiAqKkRlcGxveSBoYWNrYXRvbi1icmkqKgogIDEuIENsb25lIHJlcG9zaXRvcnkgaGFja2F0b24tYnJpCiAgMi4gQ2hlY2tvdXQgYnJhbmNoIG1hc3RlcjogZ2l0IGNoZWNrb3V0IG1hc3RlcgogIDMuIFJldmVydCBDb21taXQgaWQ6IGdpdCByZXZlcnQgLU0gMSAxOTcxNTczYTFiMmMzZDRlNWY2ZzdoOGk5ajBrMWwybTNuNG81cDYKICA0LiBQdXNoIE9yaWdpbiBNYXN0ZXI6IGdpdCBwdXNoIG9yaWdpbiBtYXN0ZXIKICA1LiBCdWthIGplbmtpbnMgcGFkYSBoYWxhbWFuIEplbmtpbnMgaGFja2F0b24tYnJpIGRhbiBsb2dpbiBtZW5nZ3VuYWthbiBjcmVkZW50aWFsIHlhbmcgdGVsYWggZGliZXJpa2FuCiAgNi4gUGlsaWggKipCdWlsZCB3aXRoIFBhcmFtZXRlcioqCiAgICAgKiBCcmFuY2ggOiBQaWxpaCBicmFuY2ggbWFzdGVyCiAgICAgKiBEYXRhY2VudGVyIDogUGlsaWggZGF0YSBjZW50ZXIgR1RJCiAgICAgKiBEZXBsb3lfVG8gOiBQaWxpaCBlbnZpcm9ubWVudCBQcm9kdWN0aW9uCiAgICAgKiBDbHVzdGVyIDogUGlsaWggY3VzdGVyIEdUSSBQcmQgTmV3IENsdXN0ZXIKICA3LiBLbGlrICoqQnVpbGQqKgogIDguIFR1bmdndSBzYW1wYWkgcHJvc2VzIGRlcGxveW1lbnQgc2VsZXNhaQ==</div>
+      </div>
+    </div>
+    <!-- AUDIT_CARD_v1.0.6_END -->
     <!-- AUDIT_CARD_v1.0.5_START -->
     <div class="audit-card glass-panel" id="audit-v1-0-5">
       <div class="card-header" onclick="toggleCard('audit-v1-0-5')">
